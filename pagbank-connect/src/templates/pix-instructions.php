@@ -19,8 +19,7 @@ use RM_PagBank\Helpers\Functions;
             <?php _e('Código PIX', 'pagbank-connect');?>
             <input type="text" class="pix-code" value="<?php echo esc_attr($qr_code_text);?>" readonly="readonly"/>
         </label>
-        <img src="<?php echo esc_url(plugins_url('public/images/copy-icon.svg', WC_PAGSEGURO_CONNECT_PLUGIN_FILE))?>" alt="Copiar" title="Copiar" class="copy-btn"/>
-        <p class="copied">Copiado ✔</p>
+        <a href="javascript:void(0)" class="button copy-btn"><?php esc_html_e('Copiar', 'pagbank-connect'); ?></a>
     </div>
     <?php if($qr_code_exp):?>
     <div class="pix-exiration-container">
@@ -28,3 +27,30 @@ use RM_PagBank\Helpers\Functions;
     </div>
     <?php endif;?>
 </div>
+
+<div class="pix-payment-confirmed" style="display: none;">
+    <h2><?php _e('Pagamento Confirmado', 'pagbank-connect');?></h2>
+    <p><?php _e('Seu pagamento foi confirmado com sucesso.', 'pagbank-connect');?></p>
+</div>
+
+<script type="text/javascript">
+    // get order status in ?wc-api=wc_order_status&order_id=123 every 10 seconds for up to 10 minutes
+    <?php /** @var int $order_id */?>
+    const order_id = '<?php echo $order_id;?>';
+    const url = '<?php echo add_query_arg(array('wc-api' => 'wc_order_status', 'order_id' => $order_id),
+        home_url('/'));?>';
+    jQuery(document).ready(function($){
+        const interval = setInterval(function () {
+            $.get(url, function (response) {
+                if (response.data === 'processing' || response.data === 'completed') {
+                    clearInterval(interval);
+                    $('.pix-payment').hide();
+                    $('.pix-payment-confirmed').show();
+                }
+            });
+        }, 10000);
+        setTimeout(function(){
+            clearInterval(interval);
+        }, 60*10*1000);
+    });
+</script>
