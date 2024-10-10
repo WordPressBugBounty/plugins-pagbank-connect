@@ -369,7 +369,7 @@ class CreditCard extends WC_Payment_Gateway_CC
                     plugins_url('public/js/creditcard.js', WC_PAGSEGURO_CONNECT_PLUGIN_FILE),
                     ['jquery', 'jquery-payment'],
                     WC_PAGSEGURO_CONNECT_VERSION,
-                    true
+                    ['strategy' => 'defer', 'in_footer' => true]
                 );
                 wp_localize_script(
                     'pagseguro-connect-creditcard',
@@ -414,5 +414,20 @@ class CreditCard extends WC_Payment_Gateway_CC
             }
             self::$addedScripts = true;
         }
+    }
+
+    /**
+     * Process refund.
+     *
+     * If the gateway declares 'refunds' support, this will allow it to refund.
+     * a passed in amount.
+     *
+     * @param  int        $order_id Order ID.
+     * @param  float|null $amount Refund amount.
+     * @param  string     $reason Refund reason.
+     * @return bool|WP_Error True or false based on success, or a WP_Error object.
+     */
+    public function process_refund( $order_id, $amount = null, $reason = '' ) {
+        return Api::refund($order_id, $amount);
     }
 }
