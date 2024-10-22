@@ -12,19 +12,38 @@ const settings = getSetting('rm-pagbank-pix_data', {});
 const label = decodeEntities( settings.title ) || window.wp.i18n.__( 'PagBank Connect Pix', 'rm-pagbank' );
 
 /**
+ * Icon component
+ * @returns {JSX.Element|string}
+ * @constructor
+ */
+const Icon = () => {
+    return settings.icon
+        ? <img src={settings.icon} style={{ marginLeft: '20px' }} />
+        : ''
+}
+
+/**
  * Label component
  *
  * @param {*} props Props from payment API.
  */
 const Label = ( props ) => {
     const { PaymentMethodLabel } = props.components;
-    return <PaymentMethodLabel text={ label } />;
+    return (
+        <>
+            <PaymentMethodLabel text={ label } />
+            <Icon />
+        </>
+    );
 };
 
 /**
  * Content component
  */
 const Content = ( props ) => {
+    const { eventRegistration, emitResponse } = props;
+    const { onPaymentSetup, onCheckoutSuccess, onCheckoutFail } = eventRegistration;
+
     let instructions = settings.instructions;
     let expiry = settings.expirationTime;
     let expiryText = sprintf( __( 'Você terá %s para pagar com seu código PIX.', 'rm-pagbank' ), expiry );
@@ -33,15 +52,27 @@ const Content = ( props ) => {
     instructions = `${instructions} <br> ${expiryText} <br> ${discountText}`;
 
     if (settings.paymentUnavailable) {
+        useEffect( () => {
+            const unsubscribe = onPaymentSetup(() => {
+                console.error('PagBank indisponível para pedidos inferiores a R$1,00.');
+                return {
+                    type: emitResponse.responseTypes.ERROR,
+                    messageContext: emitResponse.noticeContexts.PAYMENTS,
+                    message: __('PagBank indisponível para pedidos inferiores a R$1,00.', 'rm-pagbank'),
+                };
+            });
+
+            return () => {
+                unsubscribe();
+            };
+        }, [onPaymentSetup] );
+
         return (
             <div className="rm-pagbank-pix">
                 <PaymentUnavailable />
             </div>
         );
     }
-
-    const { eventRegistration, emitResponse } = props;
-    const { onPaymentSetup, onCheckoutSuccess, onCheckoutFail } = eventRegistration;
 
     useEffect( () => {
         const unsubscribe = onPaymentSetup(() => {

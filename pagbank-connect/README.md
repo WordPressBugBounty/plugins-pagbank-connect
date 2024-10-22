@@ -49,7 +49,8 @@ Você pode instalar o plugin usando o [WP-CLI](https://wp-cli.org/).
 * Crie um diretorio em wp-content/plugins chamado rm-pagbank
 * Descompacte o conteúdo do arquivo no diretório criado
 * Navegue até Plugins > Plugins instalados, e ative o plugin PagBank Connect
-* Instale o plugin [Brazilian Market on WooCommerce](https://br.wordpress.org/plugins/woocommerce-extra-checkout-fields-for-brazil/) a fim de habilitar campos adicionais de endereço e CPF, que são obrigatórios no PagBank.
+* Ative o Checkout em Blocos *ou* Instale o plugin [Brazilian Market on WooCommerce](https://br.wordpress.org/plugins/woocommerce-extra-checkout-fields-for-brazil/) a fim de habilitar campos adicionais de endereço e CPF, que são obrigatórios no PagBank.
+* Rode o comando `npm install` e `npm run build` na raiz do plugin para compilar os arquivos frontend.
 
 ## Instalação automática
 * Navegue até Plugins > Adicionar Novo e procure por \"PagBank Ricardo Martins\"
@@ -141,6 +142,10 @@ Esta é uma iniciativa pessoal, sem vínculo com PagBank. PagBank é uma marca d
 Este não é um produto oficial do PagBank.
 
 Ao usar este plugin você concorda com os [Termos de Uso e Política de Privacidade](https://pbintegracoes.com/terms/?utm_source=github&utm_medium=readme&utm_content=terms).
+
+# Nota aos desenvolvedores
+
+Para compilar os arquivos frontend digite `npm run build` no terminal, na raiz do plugin. Se desejar automatizar este processo, copie o arquivo `./git-hooks/post-checkout` para `.git/hooks/` e torne-o executável (`chmod +x .git/hooks/post-checkout`).
 
 ---
 ¹ A Integração com Envio Fácil está disponível apenas para lojas com integração 14 ou 30 dias. Embora utilizemos as APIs do PagSeguro para isso, eles não encorajam o uso dessas APIs. Use com cautela. O PagSeguro não oferece suporte para esta integração.

@@ -88,6 +88,7 @@ final class CreditCard extends AbstractPaymentMethodType
         return array(
             'title'        => isset( $this->settings[ 'title' ] ) ? $this->settings[ 'title' ] : 'Cartão de Crédito via PagBank',
             'description'  => $this->get_setting( 'description' ),
+            'icon'  => $this->gateway->icon,
             'supports'  => array_filter( $this->gateway->supports, [ $this->gateway, 'supports' ] ),
             'publicKey'  => Params::getConfig('public_key'),
             'ccThreeDEnabled'  => wc_string_to_bool(Params::getCcConfig('cc_3ds', 'no')),
@@ -97,7 +98,7 @@ final class CreditCard extends AbstractPaymentMethodType
             'isCartRecurring' => $recHelper->isCartRecurring(),
             'recurringTerms' => wp_kses($recHelper->getRecurringTermsFromCart('creditcard'), 'strong'),
             'paymentUnavailable' => $this->gateway->paymentUnavailable(),
-            'defaultInstallments' => is_checkout() ? $this->gateway->getDefaultInstallments() : null,
+            'defaultInstallments' => is_checkout() && !$recHelper->isCartRecurring() ? $this->gateway->getDefaultInstallments() : null,
             'ajax_url' => admin_url('admin-ajax.php'),
             'rm_pagbank_nonce' => wp_create_nonce('rm_pagbank_nonce')
         );
