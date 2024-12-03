@@ -55,6 +55,7 @@ class Connect
         add_filter( 'woocommerce_rest_prepare_shop_order_object', [__CLASS__, 'addOrderMetaToApiResponse'], 10, 3 );
         add_action('woocommerce_admin_order_data_after_order_details', [__CLASS__, 'addPaymentInfoAdmin'], 10, 1);
         add_action('woocommerce_api_wc_order_status', [__CLASS__, 'getOrderStatus']);
+        add_filter('woocommerce_order_item_needs_processing', [__CLASS__, 'orderItemNeedsProcessing'], 10, 3);
 
 
         // Load plugin files
@@ -426,6 +427,22 @@ class Connect
 
             update_option('pagbank_db_version', '4.13');
         }
+        
+        if (version_compare($stored_version, '4.25', '<')) {
+            global $wpdb;
+            $contentRestrictionTable = $wpdb->prefix . 'pagbank_content_restriction';
+            $sql = "CREATE TABLE IF NOT EXISTS $contentRestrictionTable
+                    (
+                        user_id    int  not null,
+                        categories text null,
+                        pages      text null,
+                        CONSTRAINT pagbank_content_restriction_pk
+                            UNIQUE (user_id)
+                    )
+                        comment 'User permissions based on subscription status';";
+            $wpdb->query($sql);
+            update_option('pagbank_db_version', '4.25');
+        }
     }
 
     public static function uninstall()
@@ -745,6 +762,32 @@ class Connect
 
         $status = $order->get_status();
         wp_send_json_success($status);    
+    }
+
+    /**
+     * Will check if skip_processing_virtual is enabled and skip processing for virtual products
+     *
+     * @param $needsProcessing
+     * @param $product
+     * @param $orderId
+     *
+     * @return void
+     */
+    public static function orderItemNeedsProcessing($needsProcessing, $product, $orderId)
+    {
+        $order = wc_get_order($orderId);
+        $paymentMethod = $order->get_payment_method();
+        if (strpos($paymentMethod, 'rm-pagbank') === false) {
+            return $needsProcessing;
+        }
+        
+        $isVirtual = $product->is_virtual();
+        $skipProcessing = Params::getConfig('skip_processing_virtual') == 'yes';
+        if ($isVirtual && $skipProcessing) {
+            return false;
+        }
+        
+        return $needsProcessing;
     }
     
     private static function addPagBankMenu()
