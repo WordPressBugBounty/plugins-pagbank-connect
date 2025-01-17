@@ -3,6 +3,8 @@
 namespace RM_PagBank\Traits;
 
 use RM_PagBank\Connect;
+use RM_PagBank\Helpers\Recurring as RecurringHelper;
+use RM_PagBank\Helpers\Params;
 
 trait StaticResources
 {
@@ -29,7 +31,8 @@ trait StaticResources
         }
 
         $alreadyEnqueued = wp_style_is('pagseguro-connect-checkout');
-        if (is_checkout() && !$alreadyEnqueued) {
+        $recHelper = new RecurringHelper();
+        if ((is_checkout() || $recHelper->isSubscriptionUpdatePage() ) && !$alreadyEnqueued) {
             $styles['pagseguro-connect-checkout'] = [
                 'src'     => plugins_url('public/css/checkout.css', WC_PAGSEGURO_CONNECT_PLUGIN_FILE),
                 'deps'    => [],
@@ -120,7 +123,9 @@ trait StaticResources
         );
         $scriptData = array(
             'ajaxurl' => admin_url('admin-ajax.php'),
-            'action' => 'pagbank_dismiss_pix_order_keys_notice'
+            'action' => 'pagbank_dismiss_pix_order_keys_notice',
+            'woocommerce_hold_stock_pix_validation' => get_option( 'woocommerce_hold_stock_minutes') <= Params::getPixConfig('pix_expiry_minutes'),
+            'woocommerce_hold_stock_boleto_validation' => get_option( 'woocommerce_hold_stock_minutes') <= (Params::getBoletoConfig('boleto_expiry_days') * 24 * 60)
         );
         wp_localize_script('pagseguro-connect-admin-pix-notice', 'script_data', $scriptData);
         wp_enqueue_script('pagseguro-connect-admin-pix-notice');
