@@ -62,8 +62,18 @@ class CreditCard extends Common
         $card = $this->getCardDetails();
         $paymentMethod->setCard($card);
 
-        //3ds
-        if ($this->order->get_meta('_pagbank_card_3ds_id')
+        // Check if split with liable will be applied
+        $hasSplitWithLiable = false;
+        if (\RM_PagBank\Integrations\Dokan\DokanSplitManager::shouldApplySplit($this->order)) {
+            $hasSplitWithLiable = true;
+        }
+
+        //3ds - Cannot be used with split transactions that have liable configuration
+        if ($hasSplitWithLiable && $this->order->get_meta('_pagbank_card_3ds_id')) {
+            // Log that 3DS is being skipped due to split
+            Functions::log('3DS authentication skipped for order ' . $this->order->get_id() . ' due to split transaction with liable configuration', 'info');
+        } elseif (!$hasSplitWithLiable 
+            && $this->order->get_meta('_pagbank_card_3ds_id')
             && (wc_string_to_bool(Params::getCcConfig('cc_3ds')) || wc_string_to_bool(Params::getCcConfig('cc_3ds_retry')))) {
             $authMethod = new AuthenticationMethod();
             $authMethod->setType('THREEDS');
@@ -112,6 +122,20 @@ class CreditCard extends Common
         if ($this->order->get_meta('_pagbank_is_recurring') === true) {
             $recurring->setType('SUBSEQUENT');
             $charge->setRecurring($recurring);
+        }
+        //endregion
+
+        //region Split Integration
+        // Check Dokan Split first (if Dokan is active)
+        if (\RM_PagBank\Integrations\Dokan\DokanSplitManager::shouldApplySplit($this->order)) {
+            $splitManager = new \RM_PagBank\Integrations\Dokan\DokanSplitManager();
+            $splitData = $splitManager->buildSplitData($this->order, 'CREDIT_CARD');
+            $charge->setSplits($splitData->jsonSerialize());
+        }
+        // If Dokan Split is not applied, check General Split
+        elseif (\RM_PagBank\Integrations\GeneralSplitManager::shouldApplySplit($this->order)) {
+            $splitData = \RM_PagBank\Integrations\GeneralSplitManager::buildSplitData($this->order, 'CREDIT_CARD');
+            $charge->setSplits($splitData->jsonSerialize());
         }
         //endregion
 
@@ -215,7 +239,7 @@ class CreditCard extends Common
         $card->setHolder($holder);
         $token_id = $this->order->get_meta('_pagbank_card_token_id');
         if($token_id && !empty($token_id) && 'new' !== $token_id){
-            $tokenCc = $this->getCcToken($token_id);
+            $tokenCc = self::getCcToken($token_id);
             $this->order->add_meta_data(
                 'pagbank_card_last4',
                 $tokenCc->get_last4(),
@@ -485,10 +509,13 @@ class CreditCard extends Common
             return;
         }
 
+        // Define payment handle baseado na versão do WooCommerce (wc-jquery-payment desde 10.3.0)
+        $payment_handle = wp_script_is('wc-jquery-payment', 'registered') ? 'wc-jquery-payment' : 'jquery-payment';
+        
         wp_enqueue_script(
             'pagseguro-connect-product-variable',
             plugins_url('public/js/product-variable.js', WC_PAGSEGURO_CONNECT_PLUGIN_FILE),
-            ['jquery', 'jquery-payment'],
+            ['jquery', $payment_handle],
             WC_PAGSEGURO_CONNECT_VERSION,
             ['strategy' => 'defer', 'in_footer' => true]
         );
@@ -624,7 +651,7 @@ class CreditCard extends Common
      * @return \WC_Payment_Token|null
      * @throws Exception
      */
-    public function getCcToken($token_id)
+    public static function getCcToken($token_id)
     {
         if ($token_id && $token_id !== 'new') {
             $token = WC_Payment_Tokens::get($token_id);

@@ -6,6 +6,7 @@ use Automattic\WooCommerce\Blocks\Payments\PaymentMethodRegistry;
 use Exception;
 use RM_PagBank\Connect\Gateway;
 use RM_PagBank\Connect\MenuPagBank;
+use RM_PagBank\Connect\OrderMetaBoxes;
 use RM_PagBank\Connect\OrderProcessor;
 use RM_PagBank\Connect\Payments\CreditCard;
 use RM_PagBank\Connect\Payments\Pix;
@@ -81,6 +82,9 @@ class Connect
         add_filter('woocommerce_gateway_title', [__CLASS__, 'getMethodTitle'], 10, 2);
 
         self::addPagBankMenu();
+        
+        // Initialize order meta boxes
+        OrderMetaBoxes::init();
 
         if (Params::getRecurringConfig('recurring_enabled')) {
             $recurring = new Connect\Recurring();
@@ -208,7 +212,7 @@ class Connect
             'extra_fields' => class_exists('Extra_Checkout_Fields_For_Brazil'),
             'block_checkout' => Functions::isBlockCheckoutInUse(),
             'connect_key' => strlen(Params::getConfig('connect_key')) == 40 ? 'Good' : 'Wrong size',
-            'standalone' => Params::getConfig('standalone'),
+            'enable_proxy' => Params::getConfig('enable_proxy', "no"),
             'settings' => [
                 'enabled' => Params::getConfig('enabled'),
                 'cc_enabled' => Params::getCcConfig('enabled'),
@@ -257,9 +261,10 @@ class Connect
                 ],
             ],
             'extra' => [
-                'hpos_enabled' => wc_get_container()->get(\Automattic\WooCommerce\Internal\DataStores\Orders\CustomOrdersTableController::class)->custom_orders_table_usage_is_enabled() ? 'yes' : 'no',
+                'hpos_enabled' => Functions::isHposEnabled() ? 'yes' : 'no',
                 'litespeed_cache' => is_plugin_active('litespeed-cache/litespeed-cache.php') ? 'yes' : 'no',
                 'wordfence_active' => is_plugin_active('wordfence/wordfence.php') ? 'yes' : 'no',
+                'cron_ok' => defined('DISABLE_WP_CRON') && DISABLE_WP_CRON ? 'yes' : 'no',
             ],
         ];
 
@@ -310,7 +315,7 @@ class Connect
         global $wpdb;
         $recurringTable = $wpdb->prefix . 'pagbank_recurring';
 
-        $sql = "CREATE TABLE $recurringTable 
+        $sql = "CREATE TABLE IF NOT EXISTS $recurringTable
                 (
                     id               int auto_increment,
                     initial_order_id int           not null UNIQUE comment 'Order that generated the subscription profiler',
@@ -336,6 +341,23 @@ class Connect
         add_option('pagbank_db_version', '4.0');
     }
 
+    /**
+     * Check if a table exists in the database
+     *
+     * @param string $table_name The table name to check
+     * @return bool True if table exists, false otherwise
+     */
+    private static function tableExists($table_name)
+    {
+        global $wpdb;
+        $table_name = esc_sql($table_name);
+        // Suppress errors to avoid warnings if table doesn't exist
+        $wpdb->suppress_errors();
+        $result = $wpdb->get_var("SHOW TABLES LIKE '$table_name'");
+        $wpdb->suppress_errors(false);
+        return $result === $table_name;
+    }
+
     public static function upgrade()
     {
         global $wpdb;
@@ -343,15 +365,18 @@ class Connect
         $stored_version = get_option('pagbank_db_version');
 
         if (version_compare($stored_version, '4.12', '<')) {
-            if ($wpdb->get_var("SHOW COLUMNS FROM $recurringTable LIKE 'recurring_initial_fee'") !== 'recurring_initial_fee') { //if column recurring_initial_fee does not exist
-                $sql = "ALTER TABLE $recurringTable
-                        ADD COLUMN recurring_initial_fee float(8, 2) null comment 'Initial fee to be charged on the first payment' AFTER recurring_amount,
-                        ADD COLUMN recurring_trial_period int null comment 'Number of days to wait before charging the first fee' AFTER recurring_initial_fee,
-                        ADD COLUMN recurring_discount_amount float(8, 2) null comment 'Discount amount to be applied to the recurring amount' AFTER recurring_trial_period,
-                        ADD COLUMN recurring_discount_cycles int null comment 'Number of cycles to apply the discount' AFTER recurring_discount_amount;
-                        ";
+            // Check if table exists before trying to modify it
+            if (self::tableExists($recurringTable)) {
+                if ($wpdb->get_var("SHOW COLUMNS FROM $recurringTable LIKE 'recurring_initial_fee'") !== 'recurring_initial_fee') { //if column recurring_initial_fee does not exist
+                    $sql = "ALTER TABLE $recurringTable
+                            ADD COLUMN recurring_initial_fee float(8, 2) null comment 'Initial fee to be charged on the first payment' AFTER recurring_amount,
+                            ADD COLUMN recurring_trial_period int null comment 'Number of days to wait before charging the first fee' AFTER recurring_initial_fee,
+                            ADD COLUMN recurring_discount_amount float(8, 2) null comment 'Discount amount to be applied to the recurring amount' AFTER recurring_trial_period,
+                            ADD COLUMN recurring_discount_cycles int null comment 'Number of cycles to apply the discount' AFTER recurring_discount_amount;
+                            ";
 
-                $wpdb->query($sql);
+                    $wpdb->query($sql);
+                }
             }
             update_option('pagbank_db_version', '4.12');
         }
@@ -424,9 +449,9 @@ class Connect
             }
 
             $generalSettings = serialize($generalSettings);
-            $ccSettings = serialize($ccSettings);
-            $pixSettings = serialize($pixSettings);
-            $boletoSettings = serialize($boletoSettings);
+            $ccSettings = $ccSettings;
+            $pixSettings = $pixSettings;
+            $boletoSettings = $boletoSettings;
 
             $wpdb->update(
                 $settingsTable,
@@ -434,44 +459,11 @@ class Connect
                 ['option_name' => 'woocommerce_rm-pagbank_settings']
             );
 
-            if (get_option('woocommerce_rm-pagbank-cc_settings')) {
-                $wpdb->update(
-                    $settingsTable,
-                    ['option_value' => $ccSettings],
-                    ['option_name' => 'woocommerce_rm-pagbank-cc_settings']
-                );
-            } else {
-                $wpdb->insert(
-                    $settingsTable,
-                    ['option_name' => 'woocommerce_rm-pagbank-cc_settings', 'option_value' => $ccSettings]
-                );
-            }
-
-            if (get_option('woocommerce_rm-pagbank-pix_settings')) {
-                $wpdb->update(
-                    $settingsTable,
-                    ['option_value' => $pixSettings],
-                    ['option_name' => 'woocommerce_rm-pagbank-pix_settings']
-                );
-            } else {
-                $wpdb->insert(
-                    $settingsTable,
-                    ['option_name' => 'woocommerce_rm-pagbank-pix_settings', 'option_value' => $pixSettings]
-                );
-            }
-
-            if (get_option('woocommerce_rm-pagbank-boleto_settings')) {
-                $wpdb->update(
-                    $settingsTable,
-                    ['option_value' => $boletoSettings],
-                    ['option_name' => 'woocommerce_rm-pagbank-boleto_settings']
-                );
-            } else {
-                $wpdb->insert(
-                    $settingsTable,
-                    ['option_name' => 'woocommerce_rm-pagbank-boleto_settings', 'option_value' => $boletoSettings]
-                );
-            }
+            // Use update_option which automatically handles INSERT or UPDATE
+            // This prevents duplicate key errors
+            update_option('woocommerce_rm-pagbank-cc_settings', $ccSettings);
+            update_option('woocommerce_rm-pagbank-pix_settings', $pixSettings);
+            update_option('woocommerce_rm-pagbank-boleto_settings', $boletoSettings);
 
             foreach ($recurringSettings as $key => $setting) {
                 $key = 'woocommerce_rm-pagbank-' . $key;
@@ -498,21 +490,60 @@ class Connect
         }
 
         if (version_compare($stored_version, '4.27', '<')) {
-            if ($wpdb->get_var("SHOW COLUMNS FROM $recurringTable LIKE 'recurring_max_cycles'") !== 'recurring_max_cycles') {
-                $sql = "ALTER TABLE $recurringTable
-                    ADD COLUMN recurring_max_cycles int null comment 'Maximum number of billing cycles' AFTER recurring_discount_cycles;";
-                $wpdb->query($sql);
+            // Check if table exists before trying to modify it
+            if (self::tableExists($recurringTable)) {
+                if ($wpdb->get_var("SHOW COLUMNS FROM $recurringTable LIKE 'recurring_max_cycles'") !== 'recurring_max_cycles') {
+                    $sql = "ALTER TABLE $recurringTable
+                        ADD COLUMN recurring_max_cycles int null comment 'Maximum number of billing cycles' AFTER recurring_discount_cycles;";
+                    $wpdb->query($sql);
+                }
             }
             update_option('pagbank_db_version', '4.27');
         }
 
         if (version_compare($stored_version, '4.28', '<')) {
-            $sql = "ALTER TABLE $recurringTable
-                    ADD COLUMN retry_attempts_remaining int null comment 'Number of billing attempts remaining on suspended subscriptions' AFTER suspended_at;
-                    ";
+            // Check if table exists before trying to modify it
+            if (self::tableExists($recurringTable)) {
+                // Check if column already exists to avoid errors
+                if ($wpdb->get_var("SHOW COLUMNS FROM $recurringTable LIKE 'retry_attempts_remaining'") !== 'retry_attempts_remaining') {
+                    $sql = "ALTER TABLE $recurringTable
+                            ADD COLUMN retry_attempts_remaining int null comment 'Number of billing attempts remaining on suspended subscriptions' AFTER suspended_at;
+                            ";
 
-            $wpdb->query($sql);
+                    $wpdb->query($sql);
+                }
+            }
             update_option('pagbank_db_version', '4.28');
+        }
+
+        if (version_compare($stored_version, '4.29', '<')) {
+            require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+            
+            $boxesTable = $wpdb->prefix . 'pagbank_ef_boxes';
+            $sql = "CREATE TABLE IF NOT EXISTS $boxesTable
+                    (
+                        box_id int NOT NULL AUTO_INCREMENT,
+                        reference varchar(30) NOT NULL,
+                        is_available tinyint NOT NULL DEFAULT '1',
+                        outer_width varchar(30) NOT NULL,
+                        outer_depth varchar(30) NOT NULL,
+                        outer_length varchar(30) NOT NULL,
+                        thickness varchar(30) NOT NULL DEFAULT 0.20,
+                        inner_length varchar(30) NOT NULL,
+                        inner_width varchar(30) NOT NULL,
+                        inner_depth decimal(30) NOT NULL,
+                        max_weight int NOT NULL,
+                        empty_weight int NOT NULL,
+                        cost float(4,2) DEFAULT '0.00',
+                        created_at datetime DEFAULT CURRENT_TIMESTAMP,
+                        updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        PRIMARY KEY (box_id),
+                        UNIQUE KEY reference (reference)
+                    )
+                    ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COMMENT='Boxes related to Envio Fácil Shipping';";
+            
+            dbDelta($sql);
+            update_option('pagbank_db_version', '4.29');
         }
     }
 
@@ -574,7 +605,9 @@ class Connect
 
             ]);
             $url .= '&' . $params;
-            wp_remote_get($url);
+            wp_remote_get($url, [
+                'user-agent' => 'WooCommerce / PagBank Integracoes',
+            ]);
         }
     }
 
@@ -638,7 +671,7 @@ class Connect
         
         //get the pix key from the last pix order
         // Check if HPOS is enabled
-        if (wc_get_container()->get(\Automattic\WooCommerce\Internal\DataStores\Orders\CustomOrdersTableController::class)->custom_orders_table_usage_is_enabled()) {
+        if (Functions::isHposEnabled()) {
             // HPOS is enabled
             $lastPixOrder = wc_get_orders([
                 'limit' => 1,
@@ -834,7 +867,7 @@ class Connect
         }
 
         $order_id = filter_input(INPUT_GET, 'order_id', FILTER_SANITIZE_NUMBER_INT);
-        $pagbank_order_id = filter_input(INPUT_GET, 'pagbank_order_id', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+        $pagbank_order_id = isset($_GET['pagbank_order_id']) ? sanitize_text_field($_GET['pagbank_order_id']) : '';
 
         if (empty($pagbank_order_id) || empty($order_id)) {
             wp_send_json_error(__('Faltando order_id ou pagbank_order_id', 'pagbank-connect'));

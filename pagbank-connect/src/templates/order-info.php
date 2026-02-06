@@ -24,6 +24,13 @@ $pbOrderId = $order->get_meta('pagbank_order_id');
     </span>
     <?php endif;?>
     
+    <?php if($order->get_meta('_pagbank_split_applied')):?>
+        <a href="#pagbank_split_details" class="split-label" title="<?php esc_attr_e('Pedido com Divisão de Pagamento', 'pagbank-connect')?>">
+            <span class="dashicons dashicons-share split-icon"></span>
+            <span class="split-text"><?php esc_html_e('Divisão de Pagamento', 'pagbank-connect')?></span>
+        </a>
+    <?php endif;?>
+    
     <?php 
     if($isRecurringOrder):?>
     <a href="<?php echo Recurring::getAdminSubscriptionDetailsUrl($order)?>" class="recurring-label">
@@ -64,7 +71,7 @@ $pbOrderId = $order->get_meta('pagbank_order_id');
 				}
 				?>
 				<br/><?php echo esc_attr($order->get_meta('_pagbank_card_first_digits') . 'xx xxxx' . $order->get_meta('_pagbank_card_last_digits')) . $brand;?>
-				<br/>Titular: <?php echo esc_attr($order->get_meta('_pagbank_card_holder_name'));?>
+				<br/>Titular: <?php echo esc_attr($order->get_meta('_pagbank_card_holder'));?>
 			<?php endif;?>
 		</span>
 	<?php endif;?>

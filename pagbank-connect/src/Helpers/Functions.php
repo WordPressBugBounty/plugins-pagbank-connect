@@ -354,6 +354,28 @@ class Functions
     }
 
     /**
+     * Verifica se o HPOS (High-Performance Order Storage) do WooCommerce está habilitado.
+     * Retorna false se o container/serviço não estiver disponível (ex.: WooCommerce antigo ou não inicializado).
+     *
+     * @return bool
+     */
+    public static function isHposEnabled(): bool
+    {
+        try {
+            if (!function_exists('wc_get_container')) {
+                return false;
+            }
+            $class = \Automattic\WooCommerce\Internal\DataStores\Orders\CustomOrdersTableController::class;
+            if (!class_exists($class)) {
+                return false;
+            }
+            return wc_get_container()->get($class)->custom_orders_table_usage_is_enabled();
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
      * @return array
      */
     public static function getExpiredPixOrders(): array
@@ -363,9 +385,7 @@ class Functions
         Functions::addMetaQueryFilter();
 
         // Check if HPOS is enabled
-        if (wc_get_container()->get(
-            \Automattic\WooCommerce\Internal\DataStores\Orders\CustomOrdersTableController::class
-        )->custom_orders_table_usage_is_enabled()) {
+        if (self::isHposEnabled()) {
             $expiredDate = strtotime(gmdate('Y-m-d H:i:s')) - $expiryMinutes * 60;
             return wc_get_orders([
                 'limit'        => -1,
@@ -448,9 +468,7 @@ class Functions
         Functions::addMetaQueryFilter();
 
         // Check if HPOS is enabled
-        if (wc_get_container()->get(
-            \Automattic\WooCommerce\Internal\DataStores\Orders\CustomOrdersTableController::class
-        )->custom_orders_table_usage_is_enabled()) {
+        if (self::isHposEnabled()) {
             $createdAtDate = strtotime(gmdate('Y-m-d H:i:s')) - 3600 * 24 * 7;
             return wc_get_orders([
                 'limit'        => -1,
@@ -632,5 +650,66 @@ class Functions
         ];
         $file_data = get_file_data($file_path, $default_headers);
         return $file_data['Template Version'] ?? null;
+    }
+
+    /**
+     * Validate PagBank Account ID format
+     *
+     * @param string $account_id
+     * @return array|\WP_Error
+     */
+    public static function validateAccountId(string $account_id)
+    {
+        // Validate format only (no API endpoint exists for account validation)
+        if (!self::isValidAccountIdFormat($account_id)) {
+            return new \WP_Error('invalid_format', __('Formato de Account ID inválido. Use o formato: ACCO_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx', 'pagbank-connect'));
+        }
+
+        // If format is valid, consider it valid
+        return [
+            'valid' => true,
+            'account_id' => $account_id,
+            'message' => __('Formato de Account ID válido', 'pagbank-connect')
+        ];
+    }
+
+    /**
+     * Check if Account ID has valid format
+     *
+     * @param string $account_id
+     * @return bool
+     */
+    public static function isValidAccountIdFormat(string $account_id): bool
+    {
+        // Format: ACCO_ + 8 hex chars + - + 4 hex chars + - + 4 hex chars + - + 4 hex chars + - 12 hex chars
+        // Total: 41 characters
+        $pattern = '/^ACCO_[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$/';
+        return preg_match($pattern, $account_id) === 1 && strlen($account_id) === 41;
+    }
+
+    /**
+     * Sanitizes product name by removing HTML tags and special characters
+     * Used when sending product names to PagBank API
+     *
+     * @param string $name Product name
+     * @return string Sanitized product name
+     */
+    public static function sanitizeProductName(string $name): string
+    {
+        // Remove script and style tags completely (including their content)
+        $sanitized = preg_replace('/<script[^>]*>.*?<\/script>/is', ' ', $name);
+        $sanitized = preg_replace('/<style[^>]*>.*?<\/style>/is', ' ', $sanitized);
+        // Replace remaining HTML tags with spaces to preserve word separation
+        $sanitized = preg_replace('/<[^>]+>/', ' ', $sanitized);
+        // Remove HTML entities (like &amp;, &lt;, &quot;, etc.) completely
+        $sanitized = preg_replace('/&[a-zA-Z0-9#]+;/', '', $sanitized);
+        // Remove any remaining HTML entities in numeric format (like &#123;)
+        $sanitized = preg_replace('/&#[0-9]+;/', '', $sanitized);
+        // Remove null bytes and other control characters (except newlines, tabs, carriage returns)
+        $sanitized = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $sanitized);
+        // Trim and normalize whitespace (multiple spaces become single space)
+        $sanitized = trim(preg_replace('/\s+/', ' ', $sanitized));
+        
+        return $sanitized;
     }
 }

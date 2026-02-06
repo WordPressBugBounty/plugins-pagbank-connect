@@ -27,19 +27,6 @@ return array(
         'desc'  => '',
         'id'    => 'wc_pagseguro_connect_general_options',
 	],
-//    'standalone' => [
-//        'title' => esc_html(__( 'Separar meios de pagamento', 'pagbank-connect')),
-//        'label' => esc_html(__('Mostrar meios de pagamento de forma individual', 'pagbank-connect')),
-//        'type'  => 'checkbox',
-//        'desc_tip' => true,
-//        'description' => esc_html(
-//            __(
-//                'Recomendável se você aceita outros gateways de pagamento. É apenas uma configuração visual.',
-//                'pagbank-connect'
-//            )),
-//        'default' => 'yes',
-//        'id'    => 'wc_pagseguro_connect_together_options',
-//    ],
     'hide_if_unavailable' => [
         'title' => esc_html(__( 'Ocultar meios de pagamento', 'pagbank-connect')),
         'label' => esc_html(__('Ocultar meios de pagamento para pedidos com total menor que R$ 1,00', 'pagbank-connect')),
@@ -65,6 +52,18 @@ return array(
             )),
         'default' => 'no',
     ],
+    'enable_proxy' => [
+        'title'       => esc_html(__('Notificações PagBank', 'pagbank-connect')),
+        'label'       => esc_html(__('Usar rota alternativa (Proxy)', 'pagbank-connect')),
+        'type'        => 'checkbox',
+        'desc_tip'    => false,
+        'description' => __(
+            'Alguns provedores barram notificações enviadas pelo PagBank. Ao marcar essa opção,'
+            . ' a notificação será encaminhada por outra rota.',
+            'pagbank-connect'
+        ),
+        'default'     => 'no',
+    ],
 	'title' => [
         'title'       => esc_html( __( 'Título Principal' , 'pagbank-connect' ) ),
         'type'        => 'text',
@@ -76,17 +75,6 @@ return array(
             'maxlength' => 40,
 		]
 	],
-//	'title_display' => [
-//		'title'		=> __('Exibir Título', 'pagbank-connect'),
-//		'type'		=> 'select',
-//		'description' => __('Exibir ou não o título do meio de pagamento no checkout.', 'pagbank-connect'),
-//		'default'	=> 'logo_only',
-//		'options'	=> [
-//			'logo_only'		=> __('Somente o Logo', 'pagbank-connect'),
-//			'text_only'	=> __('Somente o Texto', 'pagbank-connect'),
-//			'both'			=> __('Ambos', 'pagbank-connect'),
-//		],
-//	],
     'shipping_param' => [
         'title'		=> __('Endereço de Entrega', 'pagbank-connect'),
         'type'		=> 'select',
@@ -179,5 +167,62 @@ return array(
             )
         ),
         'default' => 'no',
+    ],
+    'split_payments_section' => [
+        'title' => esc_html(__( 'Divisão de Pagamentos', 'pagbank-connect' ) ),
+        'type'  => 'title',
+        'desc'  => esc_html( __(
+            'Configure a divisão automática de pagamentos para múltiplas contas PagBank. Cada conta receberá um percentual do valor total do pedido. O restante ficará com a conta principal configurada abaixo.',
+            'pagbank-connect'
+        )),
+        'id'    => 'wc_pagseguro_connect_split_payments_options',
+    ],
+    'split_payments_enabled' => [
+        'title' => esc_html( __( 'Divisão de Pagamentos', 'pagbank-connect' ) ),
+        'label' => esc_html( __( 'Habilitar', 'pagbank-connect' ) ),
+        'type'  => 'checkbox',
+        'desc_tip' => true,
+        'description' => esc_html( __(
+            'Quando ativado, os pagamentos serão divididos automaticamente entre as contas configuradas abaixo.',
+            'pagbank-connect'
+        )),
+        'default' => 'no',
+        'id'    => 'woocommerce_rm-pagbank_split_payments_enabled',
+    ],
+    'split_payments_primary_account_id' => [
+        'title'       => esc_html( __( 'Account ID Principal', 'pagbank-connect' ) ),
+        'type'        => 'text',
+        'description' => sprintf(
+            '%s %s<br><a href="%s" target="_blank" rel="noopener noreferrer">%s</a>',
+            esc_html( __(
+                'Account ID PagBank da conta principal que receberá o percentual restante do pagamento.',
+                'pagbank-connect'
+            )),
+            esc_html( __(
+                'Se deixado em branco, será obtido automaticamente da API usando a Connect Key configurada.',
+                'pagbank-connect'
+            )),
+            'https://ws.pbintegracoes.com/pspro/v7/connect/account-id/authorize',
+            esc_html( __( 'Qual é meu Account Id?', 'pagbank-connect' ) )
+        ),
+        'default'     => '',
+        'desc_tip'    => false,
+        'id'          => 'woocommerce_rm-pagbank_split_payments_primary_account_id',
+        'custom_attributes' => [
+            'pattern' => 'ACCO_[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}',
+            'maxlength' => '41',
+            'placeholder' => 'ACCO_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx (opcional)',
+        ],
+    ],
+    'split_payments_receivers' => [
+        'title'       => esc_html( __( 'Contas para Divisão', 'pagbank-connect' ) ),
+        'type'        => 'split_payments_repeater',
+        'description' => esc_html( __(
+            'Adicione uma ou mais contas PagBank que receberão uma divisão automática dos pagamentos. A soma dos percentuais deve ser menor que 100%, pois o restante ficará com a conta principal.',
+            'pagbank-connect'
+        )),
+        'default'     => [],
+        'desc_tip'    => false,
+        'id'          => 'woocommerce_rm-pagbank_split_payments_receivers',
     ],
 );

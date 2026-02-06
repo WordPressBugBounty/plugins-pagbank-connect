@@ -45,6 +45,7 @@ class Common
             'reference_id' => $this->order->get_id(),
             'customer' => $this->getCustomerData(),
             'items' => $this->getItemsData(),
+            'enable_proxy' => $this->getEnableProxy(),
         ];
         
         if (empty($return['items'])){
@@ -171,7 +172,7 @@ class Common
         $items = [];
         $itemObj = new Item();
         $itemObj->setReferenceId(1);
-        $itemObj->setName('Compra em ' . get_bloginfo('name') ?? 'PagBank');
+        $itemObj->setName(Functions::sanitizeProductName('Compra em ' . get_bloginfo('name') ?? 'PagBank'));
         $itemObj->setQuantity(1);
         $unitAmount = number_format($amount, 2, '', '');
         $itemObj->setUnitAmount($unitAmount);
@@ -194,7 +195,7 @@ class Common
             $product = $item->get_product();
             $itemObj = new Item();
             $itemObj->setReferenceId($item['product_id']);
-            $itemObj->setName($item['name']);
+            $itemObj->setName(Functions::sanitizeProductName($item['name']));
             $itemObj->setQuantity($item['quantity']);
 
             $amount = $item->get_subtotal('edit') / $item['quantity'];
@@ -216,53 +217,79 @@ class Common
 
 	/**
 	 * Populates the address object with data from the order
+	 * Compatible with HPOS and legacy storage
 	 * @return Address
 	 */
 	public function getShippingAddress(): Address
 	{
         $address = new Address();
-        $address->setStreet(substr($this->order->get_shipping_address_1('edit'), 0, 120));
-        //Usually virtual orders don't have shipping address' attributes replicated. So we use billing address instead.
-        $billingNumber = Functions::getParamFromOrderMetaOrPost($this->order, '_billing_number', 'billing_number');
-        $shippingNumber = Functions::getParamFromOrderMetaOrPost($this->order, '_shipping_number', 'shipping_number');
-        $shippingComplement = Functions::getParamFromOrderMetaOrPost(
-            $this->order,
-            '_shipping_complement',
-            'shipping_complement'
-        );
+        
+        // Street - using WC_Order method (HPOS/Legacy compatible)
+        $shippingStreet = $this->order->get_shipping_address_1('edit');
+        $address->setStreet(substr($shippingStreet, 0, 120));
+        
+        // Usually virtual orders don't have shipping address' attributes replicated. So we use billing address instead.
+        // Number - prefer meta fields, fallback to address_2 (HPOS/Legacy compatible)
+        $shippingNumber = $this->order->get_meta('_shipping_number');
+        $billingNumber = $this->order->get_meta('_billing_number');
+        $shippingAddress2 = $this->order->get_shipping_address_2('edit');
+        $billingAddress2 = $this->order->get_billing_address_2('edit');
+        
+        // Complement - using get_meta() (HPOS/Legacy compatible)
+        $shippingComplement = $this->order->get_meta('_shipping_complement');
+        $billingComplement = $this->order->get_meta('_billing_complement');
+        
+        // Neighborhood - using get_meta() (HPOS/Legacy compatible)
+        $shippingNeighborhood = $this->order->get_meta('_shipping_neighborhood');
+        $billingNeighborhood = $this->order->get_meta('_billing_neighborhood');
+        
+        // Apply sanitization and length limits
         $shippingComplement = substr($shippingComplement, 0, 40);
-        $billingComplement = substr($this->order->get_billing_address_2('edit'), 0, 40);
-        $billingNeighborhood = Functions::getParamFromOrderMetaOrPost(
-            $this->order,
-            '_billing_neighborhood',
-            'billing_neighborhood'
-        );
-        $shippingNeighborhood = Functions::getParamFromOrderMetaOrPost(
-            $this->order,
-            '_shipping_neighborhood',
-            'shipping_neighborhood'
-        );
+        $billingComplement = substr($billingComplement, 0, 40);
+        $shippingAddress2 = substr($shippingAddress2, 0, 40);
+        $billingAddress2 = substr($billingAddress2, 0, 40);
         $billingNeighborhood = substr($billingNeighborhood, 0, 60);
         $shippingNeighborhood = substr($shippingNeighborhood, 0, 60);
+        
+        // Number: prefer shipping meta, then billing meta, then shipping address_2, then billing address_2
+        $hasNumberMeta = !empty($shippingNumber) || !empty($billingNumber);
+        $number = !empty($shippingNumber) 
+            ? $shippingNumber 
+            : (!empty($billingNumber) 
+                ? $billingNumber 
+                : (!empty($shippingAddress2) 
+                    ? $shippingAddress2 
+                    : (!empty($billingAddress2) 
+                        ? $billingAddress2 
+                        : '...')));
+        $address->setNumber($number);
 
-        $billingNumber = !empty($billingNumber) ? $billingNumber : '...';
-        $address->setNumber($billingNumber);
-        if (!empty($shippingNumber)) {
-            $address->setNumber($shippingNumber);
-        }
-
-        $billingComplement = !empty($billingComplement) ? $billingComplement : '...';
-        $address->setComplement($billingComplement);
-        if (!empty($shippingComplement)) {
-            $address->setComplement($shippingComplement);
-        }
-
-        $billingNeighborhood = !empty($billingNeighborhood) ? $billingNeighborhood : '...';
-        $address->setLocality($billingNeighborhood);
-        if (!empty($shippingNeighborhood)) {
-            $address->setLocality($shippingNeighborhood);
+        // Complement: if number came from meta, use address_2 as complement fallback
+        // Otherwise, use meta complement fields only
+        // Only set complement if there's a valid value
+        if ($hasNumberMeta) {
+            // Number came from meta, so address_2 can be used as complement
+            $complement = !empty($shippingComplement) 
+                ? $shippingComplement 
+                : (!empty($billingComplement) 
+                    ? $billingComplement 
+                    : (!empty($shippingAddress2) 
+                        ? $shippingAddress2 
+                        : (!empty($billingAddress2) ? $billingAddress2 : '')));
+        } else {
+            // Number came from address_2, so only use meta complement fields
+            $complement = !empty($shippingComplement) ? $shippingComplement : (!empty($billingComplement) ? $billingComplement : '');
         }
         
+        if (!empty($complement)) {
+            $address->setComplement($complement);
+        }
+
+        // Neighborhood: prefer shipping, fallback to billing
+        $neighborhood = !empty($shippingNeighborhood) ? $shippingNeighborhood : (!empty($billingNeighborhood) ? $billingNeighborhood : '...');
+        $address->setLocality($neighborhood);
+        
+        // City, State, Postal Code - using WC_Order methods (HPOS/Legacy compatible)
         $address->setCity(substr($this->order->get_shipping_city('edit'), 0, 60));
         $address->setRegionCode($this->order->get_shipping_state('edit'));
         $address->setPostalCode(Params::removeNonNumeric($this->order->get_shipping_postcode('edit')));
@@ -272,42 +299,52 @@ class Common
 
     /**
      * Populates the address object with data from the order
+     * Compatible with HPOS and legacy storage
      * @return Address
      */
     public function getBillingAddress(): Address
     {
         $address = new Address();
-        $address->setStreet($this->order->get_billing_address_1('edit'));
-        $billingNumber = Functions::getParamFromOrderMetaOrPost($this->order, '_billing_number', 'billing_number');
-        $shippingNumber = Functions::getParamFromOrderMetaOrPost($this->order, '_billing_number', 'billing_number');
-        $billingComplement = Functions::getParamFromOrderMetaOrPost(
-            $this->order,
-            '_billing_complement',
-            'billing_complement'
-        );
-        $billingNeighborhood = Functions::getParamFromOrderMetaOrPost(
-            $this->order,
-            '_billing_neighborhood',
-            'billing_neighborhood'
-        );
-        $shippingNeighborhood = Functions::getParamFromOrderMetaOrPost(
-            $this->order,
-            '_billing_neighborhood',
-            'billing_neighborhood'
-        );
-
-        $address->setNumber($billingNumber);
-        if (!empty($shippingNumber)) {
-            $address->setNumber($shippingNumber);
-        }
-
-        $address->setComplement($billingComplement);
         
-        $address->setLocality($billingNeighborhood);
-        if (!empty($shippingNeighborhood)) {
-            $address->setLocality($shippingNeighborhood);
-        }
+        // Street - using WC_Order method (HPOS/Legacy compatible)
+        $address->setStreet($this->order->get_billing_address_1('edit'));
+        
+        // Number - prefer meta field, fallback to address_2 (HPOS/Legacy compatible)
+        $billingNumber = $this->order->get_meta('_billing_number');
+        $billingAddress2 = $this->order->get_billing_address_2('edit');
+        
+        // Complement - using get_meta() (HPOS/Legacy compatible)
+        $billingComplement = $this->order->get_meta('_billing_complement');
+        
+        // Neighborhood - using get_meta() (HPOS/Legacy compatible)
+        $billingNeighborhood = $this->order->get_meta('_billing_neighborhood');
+        
+        // Apply sanitization and length limits
+        $billingComplement = substr($billingComplement, 0, 40);
+        $billingAddress2 = substr($billingAddress2, 0, 40);
+        $billingNeighborhood = substr($billingNeighborhood, 0, 60);
 
+        // Set address fields
+        // Number: prefer meta field, fallback to address_2
+        $hasNumberMeta = !empty($billingNumber);
+        $number = !empty($billingNumber) ? $billingNumber : (!empty($billingAddress2) ? $billingAddress2 : '...');
+        $address->setNumber($number);
+        
+        // Complement: if number came from meta, use address_2 as complement fallback
+        // Only set complement if there's a valid value
+        if ($hasNumberMeta) {
+            $complement = !empty($billingComplement) ? $billingComplement : (!empty($billingAddress2) ? $billingAddress2 : '');
+        } else {
+            // Number came from address_2, so only use meta complement field
+            $complement = !empty($billingComplement) ? $billingComplement : '';
+        }
+        
+        if (!empty($complement)) {
+            $address->setComplement($complement);
+        }
+        $address->setLocality(!empty($billingNeighborhood) ? $billingNeighborhood : '...');
+
+        // City, State, Postal Code - using WC_Order methods (HPOS/Legacy compatible)
         $address->setCity($this->order->get_billing_city('edit'));
         $address->setRegionCode($this->order->get_billing_state('edit'));
         $address->setPostalCode(Params::removeNonNumeric($this->order->get_billing_postcode('edit')));
@@ -326,6 +363,11 @@ class Common
         return [
             get_site_url() . '/?wc-api=rm_ps_notif&hash=' . $hash
         ];
+    }
+
+    public function getEnableProxy(): bool
+    {
+        return Params::getConfig('enable_proxy', false);
     }
 
 
@@ -379,11 +421,126 @@ class Common
         }
 		$order->add_meta_data('pagbank_order_charges', $response['charges'] ?? null, true);
 		$order->add_meta_data('pagbank_is_sandbox', Params::getConfig('is_sandbox', false) ? 1 : 0);
+		
+		// Save split data if present (for Pix, split data comes directly in response)
+		if (!empty($response['qr_codes'][0]['splits'])) {
+		    $order->add_meta_data('_pagbank_split_data', $response['qr_codes'][0]['splits'], true);
+		    $order->add_meta_data('_pagbank_split_applied', true, true);
+		} elseif (!empty($response['charges'][0]['payment_method']['splits'])) {
+		    $order->add_meta_data('_pagbank_split_data', $response['charges'][0]['payment_method']['splits'], true);
+		    $order->add_meta_data('_pagbank_split_applied', true, true);
+		}
+		
+		// For credit card payments, split details come via a link (SPLIT)
+		// We need to fetch the split details from the API
+		if (!empty($response['charges'][0]['links'])) {
+		    foreach ($response['charges'][0]['links'] as $link) {
+		        if (isset($link['rel']) && $link['rel'] === 'SPLIT' && !empty($link['href'])) {
+		            // Extract split_id from href (last part of URL)
+		            $split_id = basename(parse_url($link['href'], PHP_URL_PATH));
+		            $order->add_meta_data('_pagbank_split_id', $split_id, true);
+		            Functions::log('Split ID encontrado no pedido ' . $order->get_id() . ': ' . $split_id, 'info');
+		            
+		            // Fetch split details from the API
+		            try {
+		                $split_details = self::fetchSplitDetails($link['href']);
+		                if (!empty($split_details)) {
+		                    // Save split data in the same format as Pix
+		                    $order->add_meta_data('_pagbank_split_data', $split_details, true);
+		                    $order->add_meta_data('_pagbank_split_applied', true, true);
+		                    Functions::log('Detalhes do split obtidos e salvos para o pedido ' . $order->get_id(), 'info');
+		                }
+		            } catch (\Exception $e) {
+		                Functions::log('Erro ao buscar detalhes do split para o pedido ' . $order->get_id() . ': ' . $e->getMessage(), 'error');
+		            }
+		            break;
+		        }
+		    }
+		}
 
 		$order->update_status('pending', 'PagBank: Pagamento Pendente');
 
         do_action('pagbank_connect_after_proccess_response', $order, $response);
 	}
+
+    /**
+     * Fetch split details from PagBank API
+     * Static method that can be called from anywhere
+     * 
+     * In production: Uses authenticated API endpoint
+     * In sandbox: Uses direct URL (no authentication required)
+     *
+     * @param string $split_url Full URL to the split endpoint
+     * @return array|null Split details or null on error
+     */
+    public static function fetchSplitDetails(string $split_url): ?array
+    {
+        $is_sandbox = Params::getConfig('is_sandbox', false);
+        
+        // In production, use authenticated API endpoint
+        if (!$is_sandbox) {
+            // Extract split_id from URL (e.g., https://api.pagseguro.com/splits/SPLI_xxx)
+            $split_id = basename(parse_url($split_url, PHP_URL_PATH));
+            
+            if (empty($split_id)) {
+                throw new \Exception('Não foi possível extrair o Split ID da URL: ' . $split_url);
+            }
+            
+            try {
+                // Use authenticated API endpoint
+                $api = new Api();
+                $split_data = $api->get('ws/splits/' . $split_id, [], 5);
+                
+                if (empty($split_data)) {
+                    throw new \Exception('Resposta vazia ao buscar detalhes do split');
+                }
+                
+                return $split_data;
+            } catch (\Exception $e) {
+                throw new \Exception('Erro ao buscar detalhes do split via API autenticada: ' . $e->getMessage());
+            }
+        }
+        
+        // In sandbox, use direct URL (replace with internal domain)
+        if (strpos($split_url, 'https://sandbox.api.pagseguro.com') !== false) {
+            $split_url = str_replace(
+                'https://sandbox.api.pagseguro.com',
+                'https://internal.sandbox.api.pagseguro.com',
+                $split_url
+            );
+        }
+        
+        // Make GET request without authentication headers (sandbox only)
+        $response = wp_remote_get($split_url, [
+            'timeout' => 30,
+            'headers' => [
+                'Content-Type' => 'application/json',
+            ],
+            'user-agent' => 'WooCommerce / PagBank Integracoes',
+        ]);
+
+        if (is_wp_error($response)) {
+            throw new \Exception('Erro ao buscar detalhes do split: ' . $response->get_error_message());
+        }
+
+        $body = wp_remote_retrieve_body($response);
+        $status_code = wp_remote_retrieve_response_code($response);
+
+        if ($status_code !== 200) {
+            throw new \Exception('Erro ao buscar detalhes do split. Status: ' . $status_code);
+        }
+
+        if (empty($body)) {
+            throw new \Exception('Resposta vazia ao buscar detalhes do split');
+        }
+
+        $split_data = json_decode($body, true);
+        if ($split_data === null && json_last_error() !== JSON_ERROR_NONE) {
+            throw new \Exception('Resposta inválida ao buscar detalhes do split: ' . json_last_error_msg());
+        }
+
+        return $split_data;
+    }
 
     public function getThankyouInstructions($order_id){
         $alreadyEnqueued = wp_script_is('pagseguro-connect-success');

@@ -67,6 +67,12 @@ class CreditCard extends WC_Payment_Gateway_CC
         add_filter('woocommerce_available_payment_gateways', [$this, 'disableIfOrderLessThanOneReal'], 10, 1);
         add_action('woocommerce_thankyou_' . Connect::DOMAIN . '-cc', [$this, 'addThankyouInstructions']);
 
+        // Remove add_payment_method support if save card is disabled
+        // Use the supports filter to override the support check, which is more reliable
+        add_filter('woocommerce_payment_gateway_supports', [$this, 'maybe_remove_add_payment_method_support_filter'], 10, 3);
+        // Also filter gateways on the add payment method page to hide gateways that don't support it
+        add_filter('woocommerce_available_payment_gateways', [$this, 'filter_gateways_without_add_payment_method_support'], 30, 1);
+
         add_action('wp_enqueue_styles', [$this, 'addStyles']);
         add_action('wp_enqueue_scripts', [$this, 'addScripts']);
         add_action('admin_enqueue_scripts', [$this, 'addAdminStyles'], 10, 1);
@@ -93,6 +99,25 @@ class CreditCard extends WC_Payment_Gateway_CC
             $this->form();
         }
 	}
+
+    /**
+     * Outputs the save payment method checkbox.
+     * Only shows if:
+     * - It's a recurring order, OR
+     * - The allow_save_card setting is enabled
+     */
+    public function save_payment_method_checkbox() {
+        $recurringHelper = new \RM_PagBank\Helpers\Recurring();
+        $isCartRecurring = $recurringHelper->isCartRecurring();
+        $allowSaveCard = wc_string_to_bool($this->get_option('cc_allow_save_card', 'no'));
+
+        // Only show checkbox if it's a recurring order OR if save card is enabled
+        if (!$isCartRecurring && !$allowSaveCard) {
+            return;
+        }
+
+        parent::save_payment_method_checkbox();
+    }
 
     public function init_form_fields()
     {
@@ -230,8 +255,12 @@ class CreditCard extends WC_Payment_Gateway_CC
             $order->add_meta_data('_pagbank_recurring_trial_length', $recurringTrialPeriod);
         }
 
-        if ($recurringTrialPeriod && $order->get_total() == 0) {
-            $payment_method = $payment_method . '_token';
+        $token_id = isset($_POST['wc-rm-pagbank-cc-payment-token']) ? wc_clean($_POST['wc-rm-pagbank-cc-payment-token']) : null;
+        $is_saved_token = $token_id !== null && $token_id !== 'new';
+        $is_trial_zero = $recurringTrialPeriod && $order->get_total() == 0;
+
+        if ($is_trial_zero) {
+            $payment_method .= '_token';
         }
 
         switch ($payment_method) {
@@ -240,7 +269,7 @@ class CreditCard extends WC_Payment_Gateway_CC
                 $installments = filter_input(INPUT_POST, 'rm-pagbank-card-installments', FILTER_SANITIZE_NUMBER_INT)
                     ?: filter_var($_POST['rm-pagbank-card-installments'], FILTER_SANITIZE_NUMBER_INT); 
                 $token_id = isset($_POST['wc-rm-pagbank-cc-payment-token']) ? wc_clean($_POST['wc-rm-pagbank-cc-payment-token']) : null;
-                if(null != $token_id && 'new' !== $token_id){
+                if($is_saved_token){
                     $order->add_meta_data(
                         '_pagbank_card_token_id',
                         $token_id,
@@ -321,6 +350,26 @@ class CreditCard extends WC_Payment_Gateway_CC
                     true
                 );
                 $method = new CreditCardToken($order);
+                if ($is_saved_token) {
+                    $tokenCc = \RM_PagBank\Connect\Payments\CreditCard::getCcToken($token_id);
+                    $holder_name = (string)$tokenCc->get_meta('holder_name');
+                    $brand = (string)$tokenCc->get_card_type();
+                    $resp = [
+                        'id'    => $tokenCc->get_token() ?: '',
+                        'holder'   => [
+                            'name' => $holder_name,
+                        ],
+                        'first_digits'   => $tokenCc->get_meta('cc_bin'),
+                        'last_digits'   => $tokenCc->get_last4(),
+                        'exp_month'   => $tokenCc->get_expiry_month(),
+                        'exp_year'   => $tokenCc->get_expiry_year(),
+                        'brand' => $brand,
+                    ];
+                   
+                    $order->add_meta_data('pagbank_payment_method', $method->code, true);
+                    $order->set_payment_method(Connect::DOMAIN);
+                    break;
+                }
                 $params = $method->prepare();
                 break;
             default:
@@ -343,7 +392,9 @@ class CreditCard extends WC_Payment_Gateway_CC
             $this->saveCcToken($order);
         }
 
-        $resp = $this->makeRequest($order, $params, $method);
+        if (!$is_trial_zero || ($is_trial_zero && !$is_saved_token)) {
+            $resp = $this->makeRequest($order, $params, $method);
+        }
 
         $method->process_response($order, $resp);
         self::updateTransaction($order, $resp);
@@ -425,6 +476,7 @@ class CreditCard extends WC_Payment_Gateway_CC
         $token->set_last4( $resp['last_digits']);
         $token->set_expiry_month( $resp['exp_month'] );
         $token->set_expiry_year( (int) $resp['exp_year'] );
+        $token->update_meta_data( 'holder_name', $resp['holder']['name'] ?? '');
         $token->update_meta_data( 'cc_bin', $resp['first_digits'] );
         $token->update_meta_data( 'customer_document', $order->get_meta('_rm_pagbank_customer_document') );
         $token->save();
@@ -532,10 +584,14 @@ class CreditCard extends WC_Payment_Gateway_CC
 
             $api = new Api();
             if ( $this->get_option('enabled') == 'yes') {
+                // Define handles baseados na versão do WooCommerce (novos handles desde 10.3.0)
+                $blockui_handle = wp_script_is('wc-jquery-blockui', 'registered') ? 'wc-jquery-blockui' : 'jquery-blockui';
+                $payment_handle = wp_script_is('wc-jquery-payment', 'registered') ? 'wc-jquery-payment' : 'jquery-payment';
+                
                 wp_enqueue_script(
                     'pagseguro-connect-creditcard',
                     plugins_url('public/js/creditcard.js', WC_PAGSEGURO_CONNECT_PLUGIN_FILE),
-                    ['jquery', 'jquery-payment'],
+                    ['jquery', $payment_handle, $blockui_handle],
                     WC_PAGSEGURO_CONNECT_VERSION,
                     ['strategy' => 'defer', 'in_footer' => true]
                 );
@@ -688,13 +744,167 @@ class CreditCard extends WC_Payment_Gateway_CC
     }
 
     /**
+     * Filter to remove add_payment_method support if save card option is disabled
+     * This filter is called by WooCommerce's supports() method and is more reliable
+     * than modifying the supports array directly
+     * 
+     * @param bool $supports Whether the gateway supports the feature
+     * @param string $feature The feature name
+     * @param WC_Payment_Gateway $gateway The gateway instance
+     * @return bool
+     */
+    public function maybe_remove_add_payment_method_support_filter($supports, $feature, $gateway)
+    {
+        // Only apply to this gateway and the add_payment_method feature
+        if ($gateway->id !== $this->id || $feature !== 'add_payment_method') {
+            return $supports;
+        }
+        
+        // Only apply on account pages (my-account area), not on checkout
+        if (!is_account_page() || is_checkout()) {
+            return $supports;
+        }
+        
+        $recurringHelper = new \RM_PagBank\Helpers\Recurring();
+        $isCartRecurring = $recurringHelper->isCartRecurring();
+        $allowSaveCard = wc_string_to_bool($this->get_option('cc_allow_save_card', 'no'));
+        
+        // Remove support if save card is disabled and it's not a recurring subscription
+        if (!$isCartRecurring && !$allowSaveCard) {
+            return false;
+        }
+        
+        return $supports;
+    }
+
+    /**
+     * Filter out gateways that don't support add_payment_method on the add payment method page
+     * This ensures the button only appears if there are gateways that actually support adding payment methods
+     * 
+     * @param array $gateways
+     * @return array
+     */
+    public function filter_gateways_without_add_payment_method_support($gateways)
+    {
+        // Only apply on the add payment method page
+        if (!is_wc_endpoint_url('add-payment-method')) {
+            return $gateways;
+        }
+        
+        // Filter out gateways that don't support add_payment_method
+        foreach ($gateways as $gateway_id => $gateway) {
+            if (!$gateway->supports('add_payment_method')) {
+                unset($gateways[$gateway_id]);
+            }
+        }
+        
+        return $gateways;
+    }
+
+    /**
+     * Get client IP address
+     * 
+     * @return string
+     */
+    private function get_client_ip()
+    {
+        $ip_keys = ['HTTP_CF_CONNECTING_IP', 'HTTP_CLIENT_IP', 'HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR'];
+        foreach ($ip_keys as $key) {
+            if (array_key_exists($key, $_SERVER) === true) {
+                foreach (explode(',', $_SERVER[$key]) as $ip) {
+                    $ip = trim($ip);
+                    if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) !== false) {
+                        return $ip;
+                    }
+                }
+            }
+        }
+        return isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '0.0.0.0';
+    }
+
+    /**
      * Add payment method for tokenization
      *
      * @return array
      */
     public function add_payment_method()
     {
+        // Verificar se usuário está logado
+        if (!is_user_logged_in()) {
+            wc_add_notice(__('Você precisa estar logado para adicionar um método de pagamento.', 'pagbank-connect'), 'error');
+            return [
+                'result' => 'failure',
+                'redirect' => wc_get_account_endpoint_url('payment-methods')
+            ];
+        }
+
+        // Verificar se a opção de salvar cartão está habilitada
+        $recurringHelper = new \RM_PagBank\Helpers\Recurring();
+        $isCartRecurring = $recurringHelper->isCartRecurring();
+        $allowSaveCard = wc_string_to_bool($this->get_option('cc_allow_save_card', 'no'));
+        
+        if (!$isCartRecurring && !$allowSaveCard) {
+            wc_add_notice(__('Salvar cartões está desabilitado para este método de pagamento.', 'pagbank-connect'), 'error');
+            return [
+                'result' => 'failure',
+                'redirect' => wc_get_endpoint_url('payment-methods')
+            ];
+        }
+
+        // Verificar nonce (WooCommerce usa 'woocommerce-add-payment-method' com campo 'woocommerce-add-payment-method-nonce')
+        $nonce_value = wc_get_var($_REQUEST['woocommerce-add-payment-method-nonce'], wc_get_var($_REQUEST['_wpnonce'], ''));
+        if (!wp_verify_nonce($nonce_value, 'woocommerce-add-payment-method')) {
+            wc_add_notice(__('Falha na verificação de segurança. Recarregue a página e tente novamente.', 'pagbank-connect'), 'error');
+            return [
+                'result' => 'failure',
+                'redirect' => wc_get_endpoint_url('add-payment-method')
+            ];
+        }
+
+        $user_id = get_current_user_id();
+        $ip_address = $this->get_client_ip();
+        
+        // Rate limiting: máximo 5 tentativas por hora por usuário
+        $transient_key_user = 'pagbank_add_card_attempts_' . $user_id;
+        $attempts_user = get_transient($transient_key_user) ?: 0;
+        
+        if ($attempts_user >= 5) {
+            wc_add_notice(__('Muitas tentativas. Tente novamente em algumas horas.', 'pagbank-connect'), 'error');
+            return [
+                'result' => 'failure',
+                'redirect' => wc_get_endpoint_url('add-payment-method')
+            ];
+        }
+        
+        // Rate limiting por IP: máximo 10 tentativas por hora por IP
+        $transient_key_ip = 'pagbank_add_card_ip_' . md5($ip_address);
+        $attempts_ip = get_transient($transient_key_ip) ?: 0;
+        
+        if ($attempts_ip >= 10) {
+            wc_add_notice(__('Muitas tentativas deste endereço. Tente novamente mais tarde.', 'pagbank-connect'), 'error');
+            return [
+                'result' => 'failure',
+                'redirect' => wc_get_endpoint_url('add-payment-method')
+            ];
+        }
+
+        // Verificar limite de cartões salvos por usuário
+        $existing_tokens = WC_Payment_Tokens::get_customer_tokens(get_current_user_id(), $this->id);
+        $max_tokens = apply_filters('pagbank_max_saved_cards', 5); // Permitir filtro para customização
+
+        if (count($existing_tokens) >= $max_tokens) {
+            wc_add_notice(__('Você já possui o número máximo de cartões salvos. Remova um cartão antes de adicionar outro.', 'pagbank-connect'), 'error');
+            return [
+                'result' => 'failure',
+                'redirect' => wc_get_endpoint_url('payment-methods')
+            ];
+        }
+
         try {
+            // Incrementar contador de tentativas ANTES da chamada à API
+            set_transient($transient_key_user, $attempts_user + 1, HOUR_IN_SECONDS);
+            set_transient($transient_key_ip, $attempts_ip + 1, HOUR_IN_SECONDS);
+
             // Validate required fields
             if (empty($_POST['rm-pagbank-card-encrypted'])) {
                 wc_add_notice(__('Card data is required.', 'pagbank-connect'), 'error');
@@ -769,6 +979,9 @@ class CreditCard extends WC_Payment_Gateway_CC
                 ];
             }
 
+            // Se sucesso, resetar contador do usuário
+            delete_transient($transient_key_user);
+
             // Create WooCommerce payment token
             $token = new WC_Payment_Token_CC();
             $token->set_gateway_id($this->id);
@@ -778,6 +991,7 @@ class CreditCard extends WC_Payment_Gateway_CC
             $token->set_last4($resp['last_digits'] ?? '****');
             $token->set_expiry_month($resp['exp_month'] ?? '');
             $token->set_expiry_year($resp['exp_year'] ?? '');
+            $token->update_meta_data( 'holder_name', $resp['holder']['name'] ?? null );
             $token->update_meta_data( 'cc_bin', $resp['first_digits'] );
             $token->update_meta_data(
                 'customer_document',
@@ -785,7 +999,6 @@ class CreditCard extends WC_Payment_Gateway_CC
                 true
             );
             // Set as default if it's the first token for this user
-            $existing_tokens = WC_Payment_Tokens::get_customer_tokens(get_current_user_id(), $this->id);
             if (empty($existing_tokens)) {
                 $token->set_default(true);
             }

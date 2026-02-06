@@ -62,6 +62,20 @@ class Pix extends Common
         //calculate expiry date based on current time + expiry days using ISO 8601 format
         $qr_code->setExpirationDate(gmdate('c', strtotime('+' . Params::getPixConfig('pix_expiry_minutes', 1440) . 'minute')));
 
+        //region Split Integration
+        // Check Dokan Split first (if Dokan is active)
+        if (\RM_PagBank\Integrations\Dokan\DokanSplitManager::shouldApplySplit($this->order)) {
+            $splitManager = new \RM_PagBank\Integrations\Dokan\DokanSplitManager();
+            $splitData = $splitManager->buildSplitData($this->order, 'PIX');
+            $qr_code->setSplits($splitData->jsonSerialize());
+        }
+        // If Dokan Split is not applied, check General Split
+        elseif (\RM_PagBank\Integrations\GeneralSplitManager::shouldApplySplit($this->order)) {
+            $splitData = \RM_PagBank\Integrations\GeneralSplitManager::buildSplitData($this->order, 'PIX');
+            $qr_code->setSplits($splitData->jsonSerialize());
+        }
+        //endregion
+
         $return['qr_codes'] = [$qr_code];
         return $return;
     }
@@ -80,9 +94,30 @@ class Pix extends Common
         $qr_code_text = $order->get_meta('pagbank_pix_qrcode_text');
         $qr_code_exp = $order->get_meta('pagbank_pix_qrcode_expiration');
         
+        // Verificar se o charge está DECLINED
+        $charges = $order->get_meta('pagbank_order_charges');
+        $is_declined = false;
+        if (!empty($charges) && is_array($charges)) {
+            foreach ($charges as $charge) {
+                if (isset($charge['status']) && $charge['status'] === 'DECLINED') {
+                    $is_declined = true;
+                    break;
+                }
+            }
+        }
+        
+        // Verificar se há PIX válido (QR code ou código texto)
+        $has_valid_pix = !empty($qr_code) || !empty($qr_code_text);
+        
+        // Só exibir se não estiver DECLINED e houver PIX válido
+        if ($is_declined || !$has_valid_pix) {
+            parent::getThankyouInstructions($order_id);
+            return;
+        }
+        
         $template_path = Functions::getTemplate('pix-instructions.php');
 
-        require_once $template_path;
+        require $template_path;
         parent::getThankyouInstructions($order_id);
     }
 

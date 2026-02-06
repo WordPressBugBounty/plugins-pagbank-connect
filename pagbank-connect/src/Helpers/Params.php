@@ -221,6 +221,10 @@ class Params
             $params['credit_card_bin'] = '555566'; //Because test credit card numbers are not accepted by the API
         }
 
+        if(!$orderTotal || $orderTotal <= 0) {
+            return [];
+        }
+
         if ($mi = self::getMaxInstallments()) {
             $params['max_installments'] = $mi;
         }
@@ -410,7 +414,12 @@ class Params
 
         $isDynamicIcoAccessible = wp_remote_get(
             plugins_url('public/images/payment-icon.php?method=pix', WC_PAGSEGURO_CONNECT_PLUGIN_FILE),
-            ['timeout' => 10, 'sslverify' => false, 'reject_unsafe_urls' => false]
+            [
+                'timeout' => 10,
+                'sslverify' => false,
+                'reject_unsafe_urls' => false,
+                'user-agent' => 'WooCommerce / PagBank Integracoes',
+            ]
         );
 
         $result = (wp_remote_retrieve_response_code($isDynamicIcoAccessible) !== 200) ? 0 : 1;
