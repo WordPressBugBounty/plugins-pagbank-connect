@@ -15,7 +15,7 @@ $fields = array();
 
 $cvc_field = '<p class="form-row form-row-last">
 			<label for="' . esc_attr( Connect::DOMAIN ) . '-card-cvc">' . esc_html__( 'Card code', 'woocommerce' ) . '&nbsp;<span class="required">*</span></label>
-			<input id="' . esc_attr( Connect::DOMAIN ) . '-card-cvc" class="input-text wc-credit-card-form-card-cvc" inputmode="numeric" autocomplete="off" autocapitalize="off" spellcheck="false" type="tel" maxlength="4" placeholder="' . esc_attr__( 'CVC', 'woocommerce' ) . '" ' . $this->field_name( 'card-cvc' ) . ' style="width:100px" />
+			<input id="' . esc_attr( Connect::DOMAIN ) . '-card-cvc" class="input-text wc-credit-card-form-card-cvc" inputmode="numeric" autocomplete="off" autocapitalize="off" spellcheck="false" type="text" maxlength="4" placeholder="' . esc_attr__( 'CVC', 'woocommerce' ) . '" ' . $this->field_name( 'card-cvc' ) . ' style="width:100px" />
 		</p>';
 
 $default_fields = [
@@ -25,22 +25,34 @@ $default_fields = [
 			</p>',
     'card-number-field' => '<p class="form-row form-row-wide">
                     <label for="' . esc_attr( Connect::DOMAIN ) . '-card-number">' . esc_html__( 'Card number', 'woocommerce' ) . '&nbsp;<span class="required">*</span></label>
-                    <input id="' . esc_attr( Connect::DOMAIN ) . '-card-number" class="input-text wc-credit-card-form-card-number" inputmode="numeric" autocomplete="cc-number" autocapitalize="off" spellcheck="false" type="tel" placeholder="&bull;&bull;&bull;&bull; &bull;&bull;&bull;&bull; &bull;&bull;&bull;&bull; &bull;&bull;&bull;&bull;" ' . $this->field_name( 'card-number' ) . ' />
+                    <input id="' . esc_attr( Connect::DOMAIN ) . '-card-number" class="input-text wc-credit-card-form-card-number" inputmode="numeric" autocomplete="cc-number" autocapitalize="off" spellcheck="false" type="text" placeholder="&bull;&bull;&bull;&bull; &bull;&bull;&bull;&bull; &bull;&bull;&bull;&bull; &bull;&bull;&bull;&bull;" ' . $this->field_name( 'card-number' ) . ' />
                 </p>',
     'card-expiry-field' => '<p class="form-row form-row-first">
 				<label for="' . esc_attr( Connect::DOMAIN ) . '-card-expiry">' . esc_html__( 'Validade (MM/AA)', 'pagbank-connect') . '&nbsp;<span class="required">*</span></label>
-				<input id="' . esc_attr( Connect::DOMAIN ) . '-card-expiry" class="input-text wc-credit-card-form-card-expiry" inputmode="numeric" autocomplete="cc-exp" autocapitalize="off" spellcheck="false" type="tel" placeholder="' . esc_attr__( 'MM / YY', 'woocommerce' ) . '" ' . $this->field_name( 'card-expiry' ) . ' maxlength="7" />
+				<input id="' . esc_attr( Connect::DOMAIN ) . '-card-expiry" class="input-text wc-credit-card-form-card-expiry" inputmode="numeric" autocomplete="cc-exp" autocapitalize="off" spellcheck="false" type="text" placeholder="' . esc_attr__( 'MM / YY', 'woocommerce' ) . '" ' . $this->field_name( 'card-expiry' ) . ' maxlength="7" />
 			</p>',
     'card-cvc-field' => $cvc_field,
-    'card-installments' => '<p class="form-row form-row-full">
+];
+
+// Only add installments field if not on add-payment-method page
+if (!is_wc_endpoint_url('add-payment-method')) {
+    $default_fields['card-installments'] = '<p class="form-row form-row-wide">
                     <label for="' . esc_attr( Connect::DOMAIN ) . '-card-installments">' . esc_html__( 'Parcelas', 'pagbank-connect' ) . '&nbsp;<span class="required">*</span></label>
                     <select id="' . esc_attr( Connect::DOMAIN ) . '-card-installments" class="input-text wc-credit-card-form-card-installments"  ' . $this->field_name( 'card-installments' ) . ' >
                         {{installment_options}}
                     </select>
-                </p>',
-];
+                </p>';
+}
 
-if ($default_installments){
+// Add CPF/CNPJ field only on add-payment-method page
+if (is_wc_endpoint_url('add-payment-method')) {
+    $default_fields['card-cpf-cnpj'] = '<p class="form-row form-row-wide">
+                    <label for="' . esc_attr( Connect::DOMAIN ) . '-card-cpf-cnpj">' . esc_html__( 'CPF/CNPJ', 'pagbank-connect' ) . '&nbsp;<span class="required">*</span></label>
+                    <input id="' . esc_attr( Connect::DOMAIN ) . '-card-cpf-cnpj" class="input-text wc-credit-card-form-card-cpf-cnpj" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" type="text" maxlength="18" placeholder="' . esc_attr__( 'documento do pagador', 'pagbank-connect' ) . '" ' . $this->field_name( 'card-cpf-cnpj' ) . ' />
+                </p>';
+}
+
+if ($default_installments && !is_wc_endpoint_url('add-payment-method')){
     $installment_options = '';
     foreach ($default_installments as $installment){
 		if (is_string($installment)) {
@@ -52,7 +64,27 @@ if ($default_installments){
     }
 }
 
-$default_fields['card-installments'] = str_replace('{{installment_options}}', $installment_options, $default_fields['card-installments']);
+if (is_wc_endpoint_url('order-pay')) {
+    $order_id = absint(get_query_var('order-pay'));
+    $order = wc_get_order($order_id);
+
+    if ($order) {
+        foreach ($order->get_items() as $item) {
+            $product = $item->get_product();
+            if ($recHelper->isProductRecurring($product)) {
+                $default_fields['card-set-default'] = '<p class="form-row form-row-wide">
+                    <label for="' . esc_attr(Connect::DOMAIN) . '-card-set-default">' . esc_html__('Usar este cartão em futuras cobranças', 'pagbank-connect') . '</label>
+                    <input type="checkbox" id="' . esc_attr(Connect::DOMAIN) . '-card-set-default" class="input-checkbox" ' . $this->field_name('card-set-default') . ' value="1"/>
+                </p>';
+                break;
+            }
+        }
+    }
+}
+
+if (isset($default_fields['card-installments'])) {
+    $default_fields['card-installments'] = str_replace('{{installment_options}}', $installment_options, $default_fields['card-installments']);
+}
 
 
 //if ( ! $this->supports( 'credit_card_form_cvc_on_saved_method' ) ) {
@@ -71,6 +103,10 @@ $fields = wp_parse_args( $fields, apply_filters( 'woocommerce_credit_card_form_f
         ?>
         <input type="hidden" <?php echo $this->field_name('card-encrypted');?>" id="<?php echo esc_attr( Connect::DOMAIN )?>-card-encrypted" />
         <input type="hidden" <?php echo $this->field_name('card-3d');?>" id="<?php echo esc_attr( Connect::DOMAIN )?>-card-3d" />
+        <input type="hidden" name="rm-pagbank-payment-profile-id" id="rm-pagbank-payment-profile-id" value="" />
+        <input type="hidden" name="rm-pagbank-vindi-customer-id" id="rm-pagbank-vindi-customer-id" value="" />
+        <input type="hidden" name="rm-pagbank-card-3ds-payload" id="rm-pagbank-card-3ds-payload" value="" />
+        <input type="hidden" name="rm-pagbank-payment-company-code" id="rm-pagbank-payment-company-code" value="" />
         <?php do_action( 'woocommerce_credit_card_form_end', Connect::DOMAIN ); ?>
         <?php if ($isCartRecurring) :?>
             <p class="form-row form-row-wide">

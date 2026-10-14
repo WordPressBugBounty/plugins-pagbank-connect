@@ -14,7 +14,7 @@ return array(
 		'title'       => __('Title', 'pagbank-connect'),
 		'type'        => 'safe_text',
 		'description' => __('Nome do meio de pagamento que seu cliente irá ver no checkout.', 'pagbank-connect'),
-		'default'     => __('Boleto via PagBank', 'pagbank-connect'),
+		'default'     => __('Boleto', 'pagbank-connect'),
 		'desc_tip'    => true,
 	],
 	'boleto_instructions' => [
@@ -38,11 +38,19 @@ return array(
 		'title'   => __('Instruções (Linha 1)', 'pagbank-connect'),
 		'type'    => 'text',
 		'default' => 'Sr. Caixa, favor não aceitar após vencimento.',
+		'description'=> __('<a target="_blank" href="https://ajuda.pbintegracoes.com/hc/pt-br/articles/36743551280013-Placeholders-dispon%C3%ADveis-para-Boleto">Placeholders disponíveis.</a> Max. 75 caracteres incluindo valores dos placeholders.', 'pagbank-connect'),
+        'custom_attributes' => [
+            'maxlength' => 75,
+        ],
 	],
 	'boleto_line_2'       => [
 		'title'   => __('Instruções (Linha 2)', 'pagbank-connect'),
 		'type'    => 'text',
 		'default' => 'Obrigado por comprar em nossa loja!',
+		'description'=> __('<a target="_blank" href="https://ajuda.pbintegracoes.com/hc/pt-br/articles/36743551280013-Placeholders-dispon%C3%ADveis-para-Boleto">Placeholders disponíveis.</a> Max. 75 caracteres incluindo valores dos placeholders.', 'pagbank-connect'),
+        'custom_attributes' => [
+            'maxlength' => 75,
+        ],
 	],
 	'boleto_discount'     => [
 		'title'       => __('Oferecer Desconto de', 'pagbank-connect'),
@@ -59,7 +67,7 @@ return array(
 	],
     'boleto_discount_excludes_shipping' => [
         'title'       => __('Excluir Frete', 'pagbank-connect'),
-        'label'       => __('Não aplicar ao Frete', 'pagbank-connect'),
+        'label'       => __('Não aplicar desconto ao Frete', 'pagbank-connect'),
         'type'        => 'checkbox',
         'description' => __(
             'Se marcado, o desconto não será aplicado sobre o valor do frete.',
@@ -68,4 +76,15 @@ return array(
         'default'     => 'no',
         'desc_tip'    => true,
     ], 
+    'boleto_send_new_order_email' => [
+        'title'       => __('Enviar e-mail de novo pedido', 'pagbank-connect'),
+        'label'       => __('Enviar e-mail de novo pedido', 'pagbank-connect'),
+        'type'        => 'checkbox',
+        'description' => __(
+            'Se marcado, um e-mail será enviado ao cliente logo após a criação do pedido com os detalhes de pagamento.',
+            'pagbank-connect'
+        ),
+        'default'     => 'yes',
+        'desc_tip'    => true,
+    ],
 );

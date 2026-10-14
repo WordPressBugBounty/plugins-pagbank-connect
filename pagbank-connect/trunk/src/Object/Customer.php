@@ -4,6 +4,7 @@
 namespace RM_PagBank\Object;
 
 use JsonSerializable;
+use RM_PagBank\Helpers\TaxId;
 
 /**
  * Class Customer
@@ -16,13 +17,27 @@ class Customer implements JsonSerializable
 {
     private string $name;
     private string $email;
-    private string $tax_id;
-    private array $phone;
+    private ?string $tax_id = null;
+    private $phone; //type not declared because it can be an array or a Phone object and mixed types are not allowed in PHP 7.4
+    /** @var Address|null Billing address — required by Vindi /v1/billing; omit for PagBank. */
+    private $address = null;
 
     #[\ReturnTypeWillChange]
     public function jsonSerialize()
     {
-        return get_object_vars($this);
+        $data = get_object_vars($this);
+        // Omit unset optional fields so PagBank does not receive "tax_id": null
+        if ($this->tax_id === null) {
+            unset($data['tax_id']);
+        }
+        if ($this->phone === null) {
+            unset($data['phone']);
+        }
+        if ($this->address === null) {
+            unset($data['address']);
+        }
+
+        return $data;
     }
 
     /**
@@ -54,6 +69,7 @@ class Customer implements JsonSerializable
      */
     public function setEmail(string $email): void
     {
+        $email = strtolower($email);
         $this->email = $email;
     }
 
@@ -62,7 +78,7 @@ class Customer implements JsonSerializable
      */
     public function getTaxId(): string
     {
-        return $this->tax_id;
+        return $this->tax_id ?? '';
     }
 
     /**
@@ -70,23 +86,36 @@ class Customer implements JsonSerializable
      */
     public function setTaxId(string $tax_id): void
     {
-        $this->tax_id = $tax_id;
+        $this->tax_id = substr(TaxId::sanitizeForApi($tax_id), 0, TaxId::CNPJ_LENGTH);
     }
 
     /**
      * @return array
      */
-    public function getPhone(): array
+    public function getPhone()
     {
-        return $this->phone;
+        return $this->phone ?? null;
     }
 
     /**
-     * @param array $phone
+     * @param array|Phone $phone When in Redirect mode, it receives the phone object directly
      */
-    public function setPhone(array $phone): void
+    public function setPhone($phone): void
     {
         $this->phone = $phone;
+    }
+
+    /**
+     * @return Address|null
+     */
+    public function getAddress()
+    {
+        return $this->address;
+    }
+
+    public function setAddress(Address $address): void
+    {
+        $this->address = $address;
     }
 
 }

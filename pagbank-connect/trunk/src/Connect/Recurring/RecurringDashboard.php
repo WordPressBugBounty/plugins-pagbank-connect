@@ -28,17 +28,25 @@ class RecurringDashboard
             return $order->get_id();
         }, $orders);
 
-        $ids_string_placeholders = implode(', ', array_fill(0, count($ids), '%d'));
-        
         global $wpdb;
-        //select from pagbank_recurring where initial order is one of those
+        
+        // If no orders, return empty array
+        if (empty($ids)) {
+            return [];
+        }
+        
+        // Create placeholders for each ID
+        $placeholders = array_fill(0, count($ids), '%d');
+        $format = implode(',', $placeholders);
+        
+        // Prepare and execute the query safely
         $table = $wpdb->prefix . 'pagbank_recurring';
-        $subscriptions = $wpdb->get_results(
-            $wpdb->prepare(
-                "SELECT * FROM `$table` WHERE initial_order_id IN ( $ids_string_placeholders ) ORDER BY id DESC",
-                $ids
-            )
+        $query = $wpdb->prepare(
+            "SELECT * FROM `$table` WHERE initial_order_id IN ($format) ORDER BY id DESC",
+            $ids
         );
+        
+        $subscriptions = $wpdb->get_results($query);
         
         if ( ! empty($subscriptions))
         {
@@ -83,13 +91,13 @@ class RecurringDashboard
             case 'PAUSED':
                 $actions['unpause'] = [
                     'name' => __('Resumir', 'pagbank-connect'),
-                    'url' => WC()->api_request_url('rm-pagbank-subscription-edit'). '?action=unpause&id=' . $subscription->id
+                    'url' => \RM_PagBank\Helpers\Recurring::subscriptionActionUrl('unpause', $subscription)
                 ];
                 break;
             case 'PENDING_CANCEL':
                 $actions['cancel'] = [
                     'name' => __('Suspender Cancelamento', 'pagbank-connect'),
-                    'url' => WC()->api_request_url('rm-pagbank-subscription-edit'). '?action=uncancel&id=' . $subscription->id
+                    'url' =>  \RM_PagBank\Helpers\Recurring::subscriptionActionUrl('uncancel', $subscription)
                 ];
                 break;
             case 'SUSPENDED':
@@ -97,7 +105,7 @@ class RecurringDashboard
                 // coming soon
 //                $actions['pay'] = [
 //                    'name' => __('Pagar', 'pagbank-connect'),
-//                    'url' => WC()->api_request_url('rm-pagbank-subscription-edit'). '?action=pay&id=' . $subscription->id
+//                    'url' => \RM_PagBank\Helpers\Recurring::subscriptionActionUrl('pay', $subscription)
 //                ];
                 break;
             case 'CANCELED':

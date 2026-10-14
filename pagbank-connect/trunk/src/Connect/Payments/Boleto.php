@@ -4,6 +4,8 @@ namespace RM_PagBank\Connect\Payments;
 
 use RM_PagBank\Connect;
 use RM_PagBank\Helpers\Params;
+use RM_PagBank\Helpers\Functions;
+use RM_PagBank\Helpers\TaxId;
 use RM_PagBank\Object\Address;
 use RM_PagBank\Object\Amount;
 use RM_PagBank\Object\Boleto as BoletoObj;
@@ -13,6 +15,7 @@ use RM_PagBank\Object\InstructionLines;
 use RM_PagBank\Object\PaymentMethod;
 use WC_Data_Exception;
 use WC_Order;
+use RM_PagBank\Helpers\OrderMeta;
 
 /**
  * Class Boleto
@@ -24,6 +27,9 @@ use WC_Order;
 class Boleto extends Common
 {
     public string $code = 'boleto';
+
+    /** Fee ID for Boleto discount (cart and order). Use this to detect our fee; do not match by name. */
+    public const DISCOUNT_FEE_ID = 'pagbank_boleto_discount';
 
 
 	/**
@@ -40,38 +46,68 @@ class Boleto extends Common
         $charge->setReferenceId($this->order->get_id());
 
         $amount = new Amount();
-        $orderTotal = $this->order->get_total();
-        $discountExcludesShipping = Params::getBoletoConfig('boleto_discount_excludes_shipping', false) == 'yes';
-
-        if (($discountConfig = Params::getBoletoConfig('boleto_discount', 0)) && ! is_wc_endpoint_url('order-pay')) {
-            $discount = floatval(Params::getDiscountValue($discountConfig, $this->order, $discountExcludesShipping));
-            $this->order->set_discount_total(floatval($this->order->get_discount_total()) + $discount);
-            $this->order->set_total($this->order->get_total() - $discount);
-            $orderTotal = $orderTotal - $discount;
-        }
-
-        $amount->setValue(Params::convertToCents($orderTotal));
+        $amount->setValue(Params::convertToCents($this->order->get_total()));
         $charge->setAmount($amount);
 
         $paymentMethod = new PaymentMethod();
         $paymentMethod->setType('BOLETO');
         $boleto = new BoletoObj();
-        $boleto->setDueDate(gmdate('Y-m-d', strtotime('+' . Params::getBoletoConfig('boleto_expiry_days', 7) . 'day')));
+        // Calculate due_date in Brazil timezone (UTC-3)
+        $brazilTimezone = new \DateTimeZone('America/Sao_Paulo');
+        $dueDate = new \DateTime('now', $brazilTimezone);
+        $dueDate->modify('+' . Params::getBoletoConfig('boleto_expiry_days', 7) . ' day');
+        $boleto->setDueDate($dueDate->format('Y-m-d'));
         $instruction_lines = new InstructionLines();
-        $instruction_lines->setLine1(Params::getBoletoConfig('boleto_line_1', 'Não aceitar após vencimento'));
-        $instruction_lines->setLine2(Params::getBoletoConfig('boleto_line_2', 'Obrigado por sua compra.'));
+        $instruction_lines->setLine1(
+            Functions::applyOrderPlaceholders(
+                Params::getBoletoConfig('boleto_line_1', 'Não aceitar após vencimento'),
+                $this->order,
+            )
+        );
+        $instruction_lines->setLine2(
+            Functions::applyOrderPlaceholders(
+                Params::getBoletoConfig('boleto_line_2', 'Obrigado por sua compra.'),
+                $this->order,
+            )
+        );
         $boleto->setInstructionLines($instruction_lines);
 
         //cpf or cnpj
-        $customerData = $this->getCustomerData();
-        $taxId = $customerData->getTaxId();
-        if (wc_string_to_bool($this->order->get_meta('_rm_pagbank_checkout_blocks'))) {
-            $taxId = $this->order->get_meta('_rm_pagbank_customer_document');
+        $billingCompany = $this->order->get_billing_company();
+        $taxId = null;
+        
+        // Always check for CNPJ first (independent of company name)
+        $taxId = Functions::getParamFromOrderMetaOrPost($this->order, '_billing_cnpj', 'billing_cnpj');
+        
+        // If CNPJ not found in order meta/post, try from customer meta (only if customer exists)
+        if (empty($taxId) && $this->order->get_customer_id()) {
+            $wcCustomer = new \WC_Customer($this->order->get_customer_id());
+            $taxId = $wcCustomer->get_meta('billing_cnpj');
+        }
+        
+        // If still no taxId (no CNPJ found), use the standard customer data method (checks CPF first, then CNPJ)
+        if (empty($taxId)) {
+            $customerData = $this->getCustomerData();
+            $taxId = $customerData->getTaxId();
+            if (wc_string_to_bool($this->order->get_meta('_rm_pagbank_checkout_blocks'))) {
+                $taxId = $this->order->get_meta('_rm_pagbank_customer_document');
+            }
+        }
+        
+        if (!empty($taxId)) {
+            $taxId = TaxId::sanitizeForApi($taxId);
         }
         
         $holder = new Holder();
-        $holder->setName($this->order->get_billing_first_name() . ' ' . $this->order->get_billing_last_name());
-        $holder->setTaxId($taxId);
+        // Use company name if available, otherwise use person name
+        if (!empty($billingCompany)) {
+            $holder->setName(trim($billingCompany));
+        } else {
+            $holder->setName($this->order->get_billing_first_name() . ' ' . $this->order->get_billing_last_name());
+        }
+        if (!empty($taxId)) {
+            $holder->setTaxId($taxId);
+        }
         $holder->setEmail($this->order->get_billing_email());
 
         $address = $this->getBillingAddress();
@@ -82,7 +118,7 @@ class Boleto extends Common
 
         $holderAddressStreet = $address->getStreet();
         //remove non A-Z 0-9 characters
-        $holderAddressStreet = preg_replace('/[^A-Za-z0-9\ ]/', '', $holderAddressStreet);
+        $holderAddressStreet =  Functions::stringClear($holderAddressStreet);
         $holderAddress->setStreet(substr($holderAddressStreet, 0, 100));
         $holderAddress->setRegionCode($address->getRegionCode());
 
@@ -101,6 +137,20 @@ class Boleto extends Common
         $paymentMethod->setBoleto($boleto);
         $charge->setPaymentMethod($paymentMethod);
 
+        //region Split Integration
+        // Check Dokan Split first (if Dokan is active)
+        if (\RM_PagBank\Integrations\Dokan\DokanSplitManager::shouldApplySplit($this->order)) {
+            $splitManager = new \RM_PagBank\Integrations\Dokan\DokanSplitManager();
+            $splitData = $splitManager->buildSplitData($this->order, 'BOLETO');
+            $charge->setSplits($splitData->jsonSerialize());
+        } elseif (($splitData = apply_filters('pagbank_connect_split_for_order', null, $this->order, 'BOLETO')) && $splitData instanceof \RM_PagBank\Object\Split) {
+            $charge->setSplits($splitData->jsonSerialize());
+        } elseif (\RM_PagBank\Integrations\GeneralSplitManager::shouldApplySplit($this->order)) {
+            $splitData = \RM_PagBank\Integrations\GeneralSplitManager::buildSplitData($this->order, 'BOLETO');
+            $charge->setSplits($splitData->jsonSerialize());
+        }
+        //endregion
+
         $charges = ['charges' => [$charge]];
 
         return array_merge($return, $charges);
@@ -116,12 +166,36 @@ class Boleto extends Common
 	 */
 	public function getThankyouInstructions($order_id){
         $order = new WC_Order($order_id);
-        $boleto_barcode = $order->get_meta('pagbank_boleto_barcode');
-        $boleto_barcode_formatted = $order->get_meta('pagbank_boleto_barcode_formatted');
-        $boleto_due_date = $order->get_meta('pagbank_boleto_due_date');
-        $boleto_pdf = $order->get_meta('pagbank_boleto_pdf');
-        $boleto_png = $order->get_meta('pagbank_boleto_png');
-        require_once dirname(__FILE__) . '/../../templates/boleto-instructions.php';
+        $boleto_barcode = OrderMeta::get($order, 'boleto_barcode');
+        $boleto_barcode_formatted = OrderMeta::get($order, 'boleto_barcode_formatted');
+        $boleto_due_date = OrderMeta::get($order, 'boleto_due_date');
+        $boleto_pdf = OrderMeta::get($order, 'boleto_pdf');
+        $boleto_png = OrderMeta::get($order, 'boleto_png');
+        $is_vindi = OrderMeta::get($order, 'partner') === 'vindi';
+        
+        // Verificar se o charge está DECLINED
+        $charges = OrderMeta::get($order, 'order_charges');
+        $is_declined = false;
+        if (!empty($charges) && is_array($charges)) {
+            foreach ($charges as $charge) {
+                if (isset($charge['status']) && $charge['status'] === 'DECLINED') {
+                    $is_declined = true;
+                    break;
+                }
+            }
+        }
+        
+        // Verificar se há boleto válido (código de barras e links)
+        $has_valid_boleto = !empty($boleto_barcode) || !empty($boleto_barcode_formatted);
+        $has_valid_links = !empty($boleto_pdf) || (!empty($boleto_png) && !$is_vindi);
+        
+        // Só exibir se não estiver DECLINED e houver boleto válido
+        if ($is_declined || (!$has_valid_boleto && !$has_valid_links)) {
+            return;
+        }
+        
+        $template_path = Functions::getTemplate('boleto-instructions.php');
+        require $template_path;
     }
 
 }

@@ -23,6 +23,18 @@ if ( ! isset($subscription->id) || ! $subscription->id ) {
 }
 
 wc_print_notices();
+
+$paymentInfoDetails = Recurring::normalizePaymentInfo($subscription->payment_info ?? null);
+if (!empty($paymentInfoDetails['needs_retoken'])) {
+    $updateUrl = wc_get_endpoint_url('rm-pagbank-subscriptions-update', $subscription->id, wc_get_page_permalink('myaccount'));
+    echo '<div class="woocommerce-info">';
+    echo esc_html__(
+        'Atualize o cartão para continuar esta assinatura (o processador de pagamento da loja mudou).',
+        'pagbank-connect'
+    );
+    echo ' <a href="' . esc_url($updateUrl) . '">' . esc_html__('Atualizar cartão', 'pagbank-connect') . '</a>';
+    echo '</div>';
+}
 ?>
 <section class="woocommerce-order-details">
     <?php do_action( 'rm_pagbank_recurring_details_before_subscription_table', $subscription ); ?>
@@ -68,6 +80,14 @@ wc_print_notices();
                     </td>
                 </tr>
             <?php endif;?>
+            <?php if ((int)$subscription->recurring_max_cycles): ?>
+                <tr>
+                    <th scope="row"><?php _e('Número de cobranças', 'pagbank-connect')?></th>
+                    <td>
+                        <?php echo $subscription->recurring_max_cycles;?>
+                    </td>
+                </tr>
+            <?php endif;?>
             <tr>
                 <th scope="row"><?php _e('Status', 'pagbank-connect')?></th>
                 <td><?php echo Recurring::getFriendlyStatus($subscription->status);?></td>
@@ -97,6 +117,13 @@ wc_print_notices();
                 </tr>
             <?php endif;?>
 
+            <?php if ( in_array($subscription->status, ['SUSPENDED']) ): ?>
+                <tr>
+                    <th scope="row"><?php _e('Suspensa em', 'pagbank-connect')?></th>
+                    <td><?php echo wc_format_datetime(wc_string_to_datetime($subscription->suspended_at));?></td>
+                </tr>
+            <?php endif;?>
+
             <?php if ( ! empty($subscription->canceled_reason) ): ?>
                 <tr>
                     <th scope="row"><?php _e('Razão do Cancelamento', 'pagbank-connect')?></th>
@@ -111,10 +138,10 @@ wc_print_notices();
                 </tr>
             <?php endif;?>
 
-            <?php if ( ! empty($subscription->suspended_reason) ): ?>
+            <?php if ( ! empty($subscription->suspended_reason) && !in_array($subscription->status, ['ACTIVE', 'PENDING', 'PAUSED'])): ?>
                 <tr>
                     <th scope="row"><?php _e('Razão da Suspensão', 'pagbank-connect')?></th>
-                    <td><?php echo wc_format_datetime(wc_string_to_datetime($subscription->suspended_reason));?></td>
+                    <td><?php echo esc_html($subscription->suspended_reason);?></td>
                 </tr>
             <?php endif;?>
         

@@ -20,8 +20,10 @@ if ( ! class_exists( 'SuspendedSubscription', false ) ) :
      * @copyright 2023 Magenteiro
      */
     class SuspendedSubscription extends RecurringEmails {
+        /** @var stdClass|null */
+        public $subscription;
 
-		/**
+        /**
 		 * Constructor.
 		 */
 		public function __construct() {
@@ -89,7 +91,9 @@ if ( ! class_exists( 'SuspendedSubscription', false ) ) :
             $this->mergePlaceholders($subscription);
             $this->placeholders['{subscription_id}'] = $subscription->id;
             $this->placeholders['{next_bill_at}'] = gmdate('d/m/Y', strtotime($subscription->next_bill_at));
-            $this->placeholders['{canceled_at}'] = gmdate('d/m/Y', strtotime($subscription->canceled_at));
+            if ($subscription->canceled_at)
+                $this->placeholders['{canceled_at}'] = gmdate('d/m/Y', strtotime($subscription->canceled_at));
+            
             $this->subscription = $subscription;
 
 			if ( $this->is_enabled() && $this->get_recipient() ) {
@@ -105,6 +109,8 @@ if ( ! class_exists( 'SuspendedSubscription', false ) ) :
 		 * @return string
 		 */
 		public function get_content_html() {
+			$subscription = $this->get_subscription_for_email( $this->subscription );
+
 			return wc_get_template_html(
 				$this->template_html,
 				array(
@@ -114,7 +120,8 @@ if ( ! class_exists( 'SuspendedSubscription', false ) ) :
 					'sent_to_admin'      => true,
 					'plain_text'         => false,
 					'email'              => $this,
-					'subscription'       => $this->subscription,
+					'subscription'       => $subscription,
+					'account_link'       => wc_get_page_permalink( 'myaccount' ) . 'rm-pagbank-subscriptions-update/' . $subscription->id,
 				),
                 $this->template_base,
                 $this->template_base
@@ -127,6 +134,8 @@ if ( ! class_exists( 'SuspendedSubscription', false ) ) :
 		 * @return string
 		 */
 		public function get_content_plain() {
+			$subscription = $this->get_subscription_for_email( $this->subscription );
+
 			return wc_get_template_html(
 				$this->template_plain,
 				array(
@@ -136,7 +145,7 @@ if ( ! class_exists( 'SuspendedSubscription', false ) ) :
 					'sent_to_admin'      => true,
 					'plain_text'         => true,
 					'email'              => $this,
-                    'subscription'       => $this->subscription,
+                    'subscription'       => $subscription,
 				),
                 $this->template_base
 			);

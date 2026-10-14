@@ -5,6 +5,8 @@ use RM_PagBank\Connect;
 use RM_PagBank\Helpers\Api;
 use RM_PagBank\Helpers\Functions;
 use RM_PagBank\Helpers\Params;
+use RM_PagBank\Helpers\TaxId;
+use RM_PagBank\Traits\OrderInvoiceEmail;
 use RM_PagBank\Traits\PaymentMethodIcon;
 use RM_PagBank\Traits\PaymentUnavailable;
 use RM_PagBank\Traits\ProcessPayment;
@@ -13,6 +15,7 @@ use RM_PagBank\Traits\ThankyouInstructions;
 use WC_Payment_Gateway;
 use WC_Data_Exception;
 use WP_Error;
+use RM_PagBank\Helpers\OrderMeta;
 
 /** Standalone Pix */
 class Pix extends WC_Payment_Gateway
@@ -22,6 +25,7 @@ class Pix extends WC_Payment_Gateway
     use StaticResources;
     use PaymentMethodIcon;
     use ThankyouInstructions;
+    use OrderInvoiceEmail;
 
     public string $code = '';
 
@@ -39,10 +43,10 @@ class Pix extends WC_Payment_Gateway
 
         $this->method_title = $this->get_option(
             'title',
-            __('Pix via PagBank', 'pagbank-connect')
+            __('Pix', 'pagbank-connect')
         );
         $this->method_description = __(
-            'Receba pagamentos com Pix via PagBank (por Ricardo Martins)',
+            'Receba pagamentos com Pix (por Ricardo Martins)',
             'pagbank-connect'
         );
 
@@ -50,12 +54,14 @@ class Pix extends WC_Payment_Gateway
         $this->init_form_fields();
         $this->init_settings();
 
-        $this->title = $this->get_option('title', __('Pix via PagBank', 'pagbank-connect'));
+        $this->title = $this->get_option('title', __('Pix', 'pagbank-connect'));
         $this->description = $this->get_option('description');
 
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
         add_filter('woocommerce_available_payment_gateways', [$this, 'disableIfOrderLessThanOneReal'], 10, 1);
         add_action('woocommerce_thankyou_' . Connect::DOMAIN . '-pix', [$this, 'addThankyouInstructions']);
+        // Fallback hook for legacy checkout where payment_method might not match gateway ID
+        add_action('woocommerce_thankyou', [$this, 'maybeAddThankyouInstructions'], 5);
         add_action('wp_ajax_pagbank_dismiss_pix_order_keys_notice', [$this, 'dismissPixOrderKeysNotice']);
         add_action('woocommerce_email_after_order_table', [$this, 'addPaymentDetailsToEmail'], 10, 4);
 
@@ -63,12 +69,31 @@ class Pix extends WC_Payment_Gateway
         add_action('wp_enqueue_scripts', [$this, 'addScripts']);
         add_action('admin_enqueue_scripts', [$this, 'addAdminStyles'], 10, 1);
         add_action('admin_enqueue_scripts', [$this, 'addAdminScripts'], 10, 1);
-        add_filter('woocommerce_gateway_icon', [$this, 'getGatewayIcon'], 10, 2);
     }
 
     public function init_form_fields()
     {
         $this->form_fields = include WC_PAGSEGURO_CONNECT_BASE_DIR . '/admin/views/settings/pix-fields.php';
+
+        $detector = \RM_PagBank\Partner\PartnerDetector::fromSettings();
+        if (!$detector->isVindi()) {
+            return;
+        }
+
+        if (!isset($this->form_fields['pix_expiry_minutes'])) {
+            return;
+        }
+
+        $yapayUrl = 'https://intermediador.yapay.com.br/settings/sales';
+        $this->form_fields['pix_expiry_minutes']['description'] = sprintf(
+            /* translators: %s = URL to Vindi/Yapay PIX sales settings */
+            __(
+                'minutos<br/><em>Obs.: o valor acima é apenas visual. A real validade do PIX é configurada '
+                . '<a href="%s" target="_blank" rel="noopener noreferrer">aqui</a>.</em>',
+                'pagbank-connect'
+            ),
+            esc_url($yapayUrl)
+        );
     }
 
     public function admin_options() {
@@ -116,7 +141,10 @@ class Pix extends WC_Payment_Gateway
         $order = wc_get_order( $order_id );
 
         //sanitize $_POST['ps_connect_method']
-        $payment_method = htmlspecialchars($_POST['payment_method'], ENT_QUOTES, 'UTF-8');
+        $payment_method = 'pix';
+        if(isset($_POST['payment_method'])){
+            $payment_method = htmlspecialchars($_POST['payment_method'], ENT_QUOTES, 'UTF-8');
+        }
 
         // region Add note if customer changed payment method
         $this->handleCustomerChangeMethod($order, $payment_method);
@@ -124,14 +152,18 @@ class Pix extends WC_Payment_Gateway
 
         $order->add_meta_data(
             '_rm_pagbank_checkout_blocks',
-            wc_bool_to_string(isset($_POST['wc-rm-pagbank-pix-new-payment-method'])),
+            wc_bool_to_string(
+                isset($_POST['wc-rm-pagbank-pix-new-payment-method'])
+                || isset($_POST['rm-pagbank-customer-document'])
+                || $order->get_created_via() === 'store-api'
+            ),
             true
         );
 
         if(isset($_POST['rm-pagbank-customer-document'])) {
             $order->add_meta_data(
                 '_rm_pagbank_customer_document',
-                htmlspecialchars($_POST['rm-pagbank-customer-document'], ENT_QUOTES, 'UTF-8'),
+                TaxId::sanitizeForApi(wp_unslash($_POST['rm-pagbank-customer-document'])),
                 true
             );
         }
@@ -144,15 +176,12 @@ class Pix extends WC_Payment_Gateway
         $method->process_response($order, $resp);
         self::updateTransaction($order, $resp);
 
+        $this->maybeSendNewOrderEmail($order, $resp);
+
         // some notes to customer (or keep them private if order is pending)
         $shouldNotify = $order->get_status('edit') !== 'pending';
-        $order->add_order_note('PagBank: Pedido criado com sucesso!', $shouldNotify);
+        $order->add_order_note(\RM_PagBank\Partner\Branding::notePrefix($order) . ': Pedido criado com sucesso!', $shouldNotify);
 
-        // sends the new order email
-        if ($shouldNotify) {
-            $newOrderEmail = WC()->mailer()->emails['WC_Email_New_Order'];
-            $newOrderEmail->trigger($order->get_id());
-        }
 
         $woocommerce->cart->empty_cart();
         return array(
@@ -188,13 +217,51 @@ class Pix extends WC_Payment_Gateway
         update_user_meta($userId, 'pagbank_dismiss_pix_order_keys_notice', true);
     }
 
+    /**
+     * Fallback method to display PIX instructions when payment_method doesn't match gateway ID
+     * This is needed for legacy checkout where the payment_method might not be set correctly
+     * 
+     * IMPORTANT: This hook only processes PIX orders. It checks:
+     * 1. If the order has pagbank_payment_method meta = 'pix'
+     * 2. If the payment_method doesn't match the gateway ID (meaning specific hook didn't fire)
+     * 3. Only then it displays the instructions
+     * 
+     * This ensures it won't interfere with other payment methods or gateways.
+     * 
+     * @param int $order_id
+     * @return void
+     */
+    public function maybeAddThankyouInstructions($order_id)
+    {
+        $order = wc_get_order($order_id);
+        if (!$order) {
+            return;
+        }
+        
+        $payment_method_meta = OrderMeta::get($order, 'payment_method');
+        if ($payment_method_meta !== 'pix') {
+            return; // Not a PIX order, exit immediately
+        }
+        
+        $payment_method = $order->get_payment_method();
+        if ($payment_method === Connect::DOMAIN . '-pix') {
+            return; // Already processed by specific hook woocommerce_thankyou_rm-pagbank-pix
+        }
+        
+        $this->addThankyouInstructions($order_id);
+    }
+
+
     public function addPaymentDetailsToEmail($order, $sent_to_admin, $plain_text, $email) {
+        if ($order && $order->is_paid()) {
+            return;
+        }
         $emailIds = ['customer_invoice', 'new_order', 'customer_processing_order'];
-        if ($order->get_meta('pagbank_payment_method') === 'pix' && in_array($email->id, $emailIds)) {
-            $pixQrCode = $order->get_meta('pagbank_pix_qrcode');
-            $pixQrCodeExpiration = $order->get_meta('pagbank_pix_qrcode_expiration');
+        if (OrderMeta::get($order, 'payment_method') === 'pix' && in_array($email->id, $emailIds)) {
+            $pixQrCode = \RM_PagBank\Helpers\PixQr::getDisplayUrl($order);
+            $pixQrCodeExpiration = OrderMeta::get($order, 'pix_qrcode_expiration');
             $pixQrCodeExpiration = $pixQrCodeExpiration ? Functions::formatDate($pixQrCodeExpiration) : '';
-            $pixQrCodeText = $order->get_meta('pagbank_pix_qrcode_text');
+            $pixQrCodeText = OrderMeta::get($order, 'pix_qrcode_text');
 
             ob_start();
             include WC_PAGSEGURO_CONNECT_BASE_DIR . '/src/templates/emails/pix-payment-details.php';
@@ -218,4 +285,19 @@ class Pix extends WC_Payment_Gateway
         return Api::refund($order_id, $amount);
     }
 
+    /**
+     * Send new order email with invoice and payment details
+     *
+     * @param $order
+     * @param $resp
+     * @return void
+     */
+    public function maybeSendNewOrderEmail($order, $resp) {
+        $this->sendNewOrder($order);
+        $shouldNotify = wc_string_to_bool(Params::getPixConfig('pix_send_new_order_email', 'yes'));
+        if (!$shouldNotify) {
+            return;
+        }
+        $this->sendOrderInvoiceEmail($order);
+    }
 }

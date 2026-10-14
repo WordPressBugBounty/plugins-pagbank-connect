@@ -88,16 +88,47 @@ class Functions
     {
         $logger = wc_get_logger();
         $msg = $msg . PHP_EOL . var_export($additional, true);
-        $logger->log($level, $msg, ['source' => 'pagbank-connect']);
+        $logger->log($level, $msg, ['source' => 'pbintegracoes']);
     }
 
 	public static function getCcFlagUrl(string $brand): string
 	{
-		if (file_exists(WC_PAGSEGURO_CONNECT_BASE_DIR . '/public/images/credit-cards/' . $brand . '.svg')) {
-			return plugins_url('public/images/credit-cards/' . $brand . '.svg', WC_PAGSEGURO_CONNECT_PLUGIN_FILE);
+		$file = self::normalizeCcBrandSlug($brand);
+		if ($file !== '' && file_exists(WC_PAGSEGURO_CONNECT_BASE_DIR . '/public/images/credit-cards/' . $file . '.svg')) {
+			return plugins_url('public/images/credit-cards/' . $file . '.svg', WC_PAGSEGURO_CONNECT_PLUGIN_FILE);
 		}
 
 		return '';
+	}
+
+	/**
+	 * Map PagBank / Vindi brand names to credit-cards/*.svg filenames.
+	 */
+	public static function normalizeCcBrandSlug(string $brand): string
+	{
+		$brand = strtolower(trim($brand));
+		if ($brand === '') {
+			return '';
+		}
+		$map = [
+			'american_express' => 'amex',
+			'americanexpress' => 'amex',
+			'amex' => 'amex',
+			'diners_club' => 'diners',
+			'dinersclub' => 'diners',
+			'dinnersclub' => 'diners',
+			'diners' => 'diners',
+			'mastercard' => 'mastercard',
+			'master' => 'mastercard',
+			'visa' => 'visa',
+			'elo' => 'elo',
+			'hipercard' => 'hipercard',
+			'hiper' => 'hipercard',
+			'jcb' => 'jcb',
+			'aura' => 'aura',
+		];
+
+		return $map[$brand] ?? preg_replace('/[^a-z0-9_-]/', '', $brand);
 	}
 
     public static function getFriendlyPaymentMethodName(string $method): string
@@ -305,21 +336,6 @@ class Functions
     }
 
     /**
-     * Validates if the generated QrCode is valid (BETA)
-     * @param $pixCode
-     *
-     * @return bool
-     */
-    public static function isValidPixCode($pixCode): bool
-    {
-        if (strpos($pixCode, 'br.gov.bcb.pix') !== false && strpos($pixCode, 'pagseguro.com') !== false) {
-            return true;
-        }
-        
-        return false;
-    }
-
-    /**
      * Adds a meta query filter to the main query
      * @return void
      */
@@ -336,11 +352,364 @@ class Functions
     }
 
     /**
-     * Check if the current page is the checkout page and uses Woocommerce Blocks
+     * Check if the current page is the checkout page and uses Woocommerce Blocks. Also returns false if the page is a CartFlows checkout.
      * @return bool
      */
     public static function isCheckoutBlocks(): bool
     {
-        return is_checkout() && WC_Blocks_Utils::has_block_in_page( wc_get_page_id('checkout'), 'woocommerce/checkout' );
+        $page_id = get_the_ID();
+        return is_checkout() && WC_Blocks_Utils::has_block_in_page( $page_id, 'woocommerce/checkout' ) && !Functions::isCartflowCheckout();
+    }
+
+    public static function isCartflowCheckout() {
+        // Check if CartFlows plugin is active and the current page is a wcf checkout
+        if ( ! class_exists( 'CartFlows_Checkout' ) || !function_exists('_is_wcf_checkout_type')) {
+            return false;
+        }
+        return _is_wcf_checkout_type();
+    }
+
+    /**
+     * Verifica se o HPOS (High-Performance Order Storage) do WooCommerce está habilitado.
+     * Retorna false se o container/serviço não estiver disponível (ex.: WooCommerce antigo ou não inicializado).
+     *
+     * @return bool
+     */
+    public static function isHposEnabled(): bool
+    {
+        try {
+            if (!function_exists('wc_get_container')) {
+                return false;
+            }
+            $class = \Automattic\WooCommerce\Internal\DataStores\Orders\CustomOrdersTableController::class;
+            if (!class_exists($class)) {
+                return false;
+            }
+            return wc_get_container()->get($class)->custom_orders_table_usage_is_enabled();
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
+     * @return array
+     */
+    public static function getExpiredPixOrders(): array
+    {
+        $expiryMinutes = Params::getPixConfig('pix_expiry_minutes');
+
+        Functions::addMetaQueryFilter();
+
+        // Check if HPOS is enabled
+        if (self::isHposEnabled()) {
+            $expiredDate = strtotime(gmdate('Y-m-d H:i:s')) - $expiryMinutes * 60;
+            return wc_get_orders([
+                'limit'        => -1,
+                'status'       => 'pending',
+                'date_created' => '<'.$expiredDate,
+                'meta_query'   => [
+                    OrderMeta::metaQueryEquals('payment_method', 'pix'),
+                ]
+            ]);
+        }
+        // else, HPOS is disabled
+        $expiredDate = current_time('timestamp') - $expiryMinutes * 60;
+        $args = array(
+            'post_type'      => 'shop_order',
+            'posts_per_page' => -1,
+            'post_status'    => 'any',
+            'orderby'        => 'date',
+            'post_status'    => 'wc-pending',
+            'date_query'     => [
+                'before' => date('Y-m-d H:i:s', $expiredDate),
+            ],
+            'meta_query'     => [
+                'relation' => 'AND',
+                OrderMeta::metaQueryEquals('payment_method', 'pix'),
+            ],
+        );
+
+        $query = new \WP_Query($args);
+
+        $expiringOrders = [];
+        if ($query->have_posts()) {
+            while ($query->have_posts()) {
+                $query->the_post();
+                $order_id = get_the_ID();
+                $order = wc_get_order($order_id);
+                $expiringOrders[] = $order;
+            }
+            wp_reset_postdata();
+        }
+        return $expiringOrders;
+    }
+
+    /**
+     * Applies placeholders to a string based on the order data
+     * @param $string
+     * @param WC_Order $order
+     *
+     * @return mixed|null
+     */
+    public static function applyOrderPlaceholders($string, $order)
+    {
+        if(!$order instanceof WC_Order){
+            return $string;
+        }
+        $placeholders = [
+            '{paymentMethod}' => $order->get_payment_method(),
+            '{orderTotal}' => $order->get_total(),
+            '{orderId}' => $order->get_id(),
+            '{customerName}' => $order->get_billing_first_name() . ' ' . $order->get_billing_last_name(),
+            '{customerEmail}' => $order->get_billing_email(),
+        ];
+        return apply_filters('pagbank_connect_order_placeholders', strtr($string, $placeholders), $order->get_id());
+    }
+
+    /**
+     * Get the pending orders that are using PagBank as payment method in the last 7 days
+     * @return array
+     * @throws \Automattic\WooCommerce\Internal\DependencyManagement\ContainerException
+     */
+    public static function getPagBankPendingOrders(): array
+    {
+        Functions::addMetaQueryFilter();
+
+        // Check if HPOS is enabled
+        if (self::isHposEnabled()) {
+            $createdAtDate = strtotime(gmdate('Y-m-d H:i:s')) - 3600 * 24 * 7;
+            return wc_get_orders([
+                'limit'        => -1,
+                'status'       => ['wc-pending', 'wc-on-hold'],
+                'date_created' => '>'.$createdAtDate,
+                'orderby'      => 'date',
+                'order'        => 'ASC',
+                'meta_query'   => [
+                    OrderMeta::metaQueryEquals('payment_method', '', '!='),
+                ]
+            ]);
+        }
+        // else, HPOS is disabled
+        $createdAtDate = current_time('timestamp') - 3600 * 24 * 7;
+        $args = array(
+            'post_type'      => 'shop_order',
+            'posts_per_page' => -1,
+            'post_status'    => 'any',
+            'orderby'        => 'date',
+            'order'          => 'ASC',
+            'post_status'    => ['wc-pending', 'wc-on-hold'],
+            'date_query'     => [
+                'after' => date('Y-m-d H:i:s', $createdAtDate),
+            ],
+            'meta_query'     => [
+                'relation' => 'AND',
+                OrderMeta::metaQueryEquals('payment_method', '', '!='),
+            ],
+        );
+
+        $query = new \WP_Query($args);
+
+        $expiringOrders = [];
+        if ($query->have_posts()) {
+            while ($query->have_posts()) {
+                $query->the_post();
+                $order_id = get_the_ID();
+                $order = wc_get_order($order_id);
+                $expiringOrders[] = $order;
+            }
+            wp_reset_postdata();
+        }
+        return $expiringOrders;
+    }
+
+    /**
+     * Removes special characters from a string and convert accents to their base characters
+     * @param $string
+     *
+     * @return array|string|string[]|null
+     */
+    public static function stringClear($string)
+    {
+        $table = [
+            'Š' => 'S',
+            'š' => 's',
+            'Ð' => 'D',
+            'd' => 'd',
+            'Ž' => 'Z',
+            'ž' => 'z',
+            'C' => 'C',
+            'c' => 'c',
+            'À' => 'A',
+            'Á' => 'A',
+            'Â' => 'A',
+            'Ã' => 'A',
+            'Ä' => 'A',
+            'Å' => 'A',
+            'Æ' => 'A',
+            'Ç' => 'C',
+            'È' => 'E',
+            'É' => 'E',
+            'Ê' => 'E',
+            'Ë' => 'E',
+            'Ì' => 'I',
+            'Í' => 'I',
+            'Î' => 'I',
+            'Ï' => 'I',
+            'Ñ' => 'N',
+            'Ò' => 'O',
+            'Ó' => 'O',
+            'Ô' => 'O',
+            'Õ' => 'O',
+            'Ö' => 'O',
+            'Ø' => 'O',
+            'Ù' => 'U',
+            'Ú' => 'U',
+            'Û' => 'U',
+            'Ü' => 'U',
+            'Ý' => 'Y',
+            'Þ' => 'B',
+            'ß' => 'Ss',
+            'à' => 'a',
+            'á' => 'a',
+            'â' => 'a',
+            'ã' => 'a',
+            'ä' => 'a',
+            'å' => 'a',
+            'æ' => 'a',
+            'ç' => 'c',
+            'è' => 'e',
+            'é' => 'e',
+            'ê' => 'e',
+            'ë' => 'e',
+            'ì' => 'i',
+            'í' => 'i',
+            'î' => 'i',
+            'ï' => 'i',
+            'ð' => 'o',
+            'ñ' => 'n',
+            'ò' => 'o',
+            'ó' => 'o',
+            'ô' => 'o',
+            'õ' => 'o',
+            'ö' => 'o',
+            'ø' => 'o',
+            'ù' => 'u',
+            'ú' => 'u',
+            'û' => 'u',
+            'ý' => 'y',
+            'þ' => 'b',
+            'ÿ' => 'y',
+        ];
+
+        $result = strtr($string, $table);
+        $result = preg_replace('/[^A-Za-z0-9\ ]/', '', $result);
+        return $result;
+    }
+
+    /**
+     * Get the template file path for a given template name
+     *
+     * @param string $template_name
+     * @return string
+     */
+    public static function getTemplate($template_name) 
+    {
+        // path default template /pagbank-connect/src/templates/template-name.php
+        $default_template = plugin_dir_path(__FILE__) . '../templates/' . $template_name;
+        $theme_template = locate_template('pagbank-connect/' . $template_name);
+
+        $template_path = $theme_template ?: $default_template;
+
+        // Verify version
+        $default_version = self::getTemplateVersion($default_template);
+        $theme_version   = $theme_template ? self::getTemplateVersion($theme_template) : null;
+
+        if ($theme_version && version_compare($theme_version, $default_version, '<')) {
+            // Log, warning in admin, version mismatch
+            Functions::log("O template sobrescrito '$template_name' está desatualizado (versão $theme_version, esperado $default_version).", 'warning', [
+                'context' => 'pagbank-connect',
+                'type'    => 'template_version_mismatch',
+                'template' => $template_name,
+                'version'  => $theme_version,
+                'expected' => $default_version,
+            ]);
+        }
+
+        return $template_path;
+    }
+
+    /**
+     * Get the version of a template file based on its header
+     *
+     * @param string $file_path
+     * @return string|null
+     */
+    public static function getTemplateVersion($file_path) {
+        $default_headers = [
+            'Template Version' => 'Template Version',
+        ];
+        $file_data = get_file_data($file_path, $default_headers);
+        return $file_data['Template Version'] ?? null;
+    }
+
+    /**
+     * Validate PagBank Account ID format
+     *
+     * @param string $account_id
+     * @return array|\WP_Error
+     */
+    public static function validateAccountId(string $account_id)
+    {
+        // Validate format only (no API endpoint exists for account validation)
+        if (!self::isValidAccountIdFormat($account_id)) {
+            return new \WP_Error('invalid_format', __('Formato de Account ID inválido. Use o formato: ACCO_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx', 'pagbank-connect'));
+        }
+
+        // If format is valid, consider it valid
+        return [
+            'valid' => true,
+            'account_id' => $account_id,
+            'message' => __('Formato de Account ID válido', 'pagbank-connect')
+        ];
+    }
+
+    /**
+     * Check if Account ID has valid format
+     *
+     * @param string $account_id
+     * @return bool
+     */
+    public static function isValidAccountIdFormat(string $account_id): bool
+    {
+        // Format: ACCO_ + 8 hex chars + - + 4 hex chars + - + 4 hex chars + - + 4 hex chars + - 12 hex chars
+        // Total: 41 characters
+        $pattern = '/^ACCO_[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$/';
+        return preg_match($pattern, $account_id) === 1 && strlen($account_id) === 41;
+    }
+
+    /**
+     * Sanitizes product name by removing HTML tags and special characters
+     * Used when sending product names to PagBank API
+     *
+     * @param string $name Product name
+     * @return string Sanitized product name
+     */
+    public static function sanitizeProductName(string $name): string
+    {
+        // Remove script and style tags completely (including their content)
+        $sanitized = preg_replace('/<script[^>]*>.*?<\/script>/is', ' ', $name);
+        $sanitized = preg_replace('/<style[^>]*>.*?<\/style>/is', ' ', $sanitized);
+        // Replace remaining HTML tags with spaces to preserve word separation
+        $sanitized = preg_replace('/<[^>]+>/', ' ', $sanitized);
+        // Remove HTML entities (like &amp;, &lt;, &quot;, etc.) completely
+        $sanitized = preg_replace('/&[a-zA-Z0-9#]+;/', '', $sanitized);
+        // Remove any remaining HTML entities in numeric format (like &#123;)
+        $sanitized = preg_replace('/&#[0-9]+;/', '', $sanitized);
+        // Remove null bytes and other control characters (except newlines, tabs, carriage returns)
+        $sanitized = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $sanitized);
+        // Trim and normalize whitespace (multiple spaces become single space)
+        $sanitized = trim(preg_replace('/\s+/', ' ', $sanitized));
+        
+        return $sanitized;
     }
 }

@@ -23,6 +23,7 @@
 
 /** @var stdClass $subscription */
 /** @var string $email_heading */
+/** @var string $account_link */
 /** @var SuspendedSubscription $email */
 /** @var WC_Order $order */
 
@@ -47,6 +48,11 @@ do_action( 'woocommerce_email_header', $email_heading, $email ); ?>
             $subscription->id
         ); ?></p>
 
+    <?php
+    $paymentInfo = \RM_PagBank\Helpers\Recurring::normalizePaymentInfo($subscription->payment_info ?? null);
+    $needsRetoken = !empty($paymentInfo['needs_retoken']);
+    ?>
+
     <?php if($subscription->suspended_reason):?>
     <p>
         <?php
@@ -58,6 +64,29 @@ do_action( 'woocommerce_email_header', $email_heading, $email ); ?>
             $subscription->suspended_reason
         ); ?></p>
     <?php endif;?>
+
+    <?php if ($needsRetoken) : ?>
+    <p><?php echo esc_html__(
+        'Não vamos tentar cobrar de novo até você atualizar o cartão. Use o botão abaixo para cadastrar um cartão válido no processador atual da loja.',
+        'pagbank-connect'
+    ); ?></p>
+    <?php else : ?>
+    <p><?php echo sprintf(
+            esc_html(
+                'Uma nova tentativa de cobrança será feita no dia %s.',
+                'pagbank-connect'
+            ),
+            mysql2date('d/m/Y', $subscription->next_bill_at));
+    ?></p>
+    <p>
+        <?php echo __('Recomendamos que atualize o cartão utilizado no pagamento da assinatura.','pagbank-connect'); ?>
+    </p>
+    <?php endif; ?>
+    <p>
+        <a href="<?php echo esc_url( $account_link ); ?>" class="button button-primary" target="_blank">
+            <?php esc_html_e( 'Atualizar cartão', 'pagbank-connect' ); ?>
+        </a>
+    </p>
 <?php
 
 /*

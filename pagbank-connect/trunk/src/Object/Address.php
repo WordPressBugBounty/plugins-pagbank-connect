@@ -47,11 +47,11 @@ class Address implements JsonSerializable
     }
 
     /**
-     * @return mixed
+     * @return string
      */
     public function getNumber(): string
     {
-        return $this->number;
+        return $this->number ?? '';
     }
 
     /**
@@ -63,27 +63,31 @@ class Address implements JsonSerializable
     }
 
     /**
-     * @return mixed
+     * @return string
      */
     public function getComplement(): string
     {
-        return $this->complement;
+        return $this->complement ?? '';
     }
 
     /**
-     * @param mixed $complement
+     * @param string|null $complement
      */
-    public function setComplement(string $complement): void
+    public function setComplement(?string $complement): void
     {
-        $this->complement = substr($complement, 0, 40);
+        if ($complement === null || $complement === '') {
+            $this->complement = null;
+        } else {
+            $this->complement = substr($complement, 0, 40);
+        }
     }
 
     /**
-     * @return mixed
+     * @return string
      */
     public function getLocality(): string
     {
-        return $this->locality;
+        return $this->locality ?? '';
     }
 
     /**
@@ -95,11 +99,11 @@ class Address implements JsonSerializable
     }
 
     /**
-     * @return mixed
+     * @return string
      */
     public function getRegionCode(): string
     {
-        return $this->region_code;
+        return $this->region_code ?? '';
     }
 
     /**
@@ -107,18 +111,18 @@ class Address implements JsonSerializable
      */
     public function setRegionCode(string $region_code): void
     {
-        $this->region_code = substr($region_code, 0, 2);
+        $this->region_code = strtoupper(substr($region_code, 0, 2));
         if ($this->country == 'BRA'){
             $this->region = $this->getRegion();
         }
     }
 
     /**
-     * @return mixed
+     * @return string
      */
     public function getCity(): string
     {
-        return $this->city;
+        return $this->city ?? '';
     }
 
     /**
@@ -200,11 +204,11 @@ class Address implements JsonSerializable
     }
 
     /**
-     * @return mixed
+     * @return string
      */
     public function getPostalCode(): string
     {
-        return $this->postal_code;
+        return $this->postal_code ?? '';
     }
 
     /**

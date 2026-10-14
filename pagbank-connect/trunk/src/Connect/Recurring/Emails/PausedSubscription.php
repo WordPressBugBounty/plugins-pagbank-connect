@@ -20,8 +20,9 @@ if ( ! class_exists( 'PausedSubscription', false ) ) :
      * @copyright 2023 Magenteiro
      */
     class PausedSubscription extends RecurringEmails {
+        public $subscription;
 
-		/**
+        /**
 		 * Constructor.
 		 */
 		public function __construct() {
@@ -92,8 +93,12 @@ if ( ! class_exists( 'PausedSubscription', false ) ) :
 
             $this->subscription = $subscription;
             $this->mergePlaceholders($subscription);
-            $this->placeholders['{next_bill_at}'] = gmdate('d/m/Y', strtotime($subscription->next_bill_at));
-            $this->placeholders['{paused_at}'] = gmdate('d/m/Y', strtotime($subscription->paused_at));
+            
+            if ($subscription->next_bill_at)
+                $this->placeholders['{next_bill_at}'] = gmdate('d/m/Y', strtotime($subscription->next_bill_at));
+            
+            if ($subscription->paused_at) 
+                $this->placeholders['{paused_at}'] = gmdate('d/m/Y', strtotime($subscription->paused_at));
 
 			if ( $this->is_enabled() && $this->get_recipient() ) {
 				$this->send( $this->get_recipient(), $this->get_subject(), $this->get_content(), $this->get_headers(), $this->get_attachments() );
@@ -108,6 +113,8 @@ if ( ! class_exists( 'PausedSubscription', false ) ) :
 		 * @return string
 		 */
 		public function get_content_html() {
+			$subscription = $this->get_subscription_for_email( $this->subscription );
+
 			return wc_get_template_html(
 				$this->template_html,
 				array(
@@ -117,7 +124,7 @@ if ( ! class_exists( 'PausedSubscription', false ) ) :
 					'sent_to_admin'      => true,
 					'plain_text'         => false,
 					'email'              => $this,
-					'subscription'       => $this->subscription,
+					'subscription'       => $subscription,
 				),
                 $this->template_base,
                 $this->template_base
@@ -130,6 +137,8 @@ if ( ! class_exists( 'PausedSubscription', false ) ) :
 		 * @return string
 		 */
 		public function get_content_plain() {
+			$subscription = $this->get_subscription_for_email( $this->subscription );
+
 			return wc_get_template_html(
 				$this->template_plain,
 				array(
@@ -139,7 +148,7 @@ if ( ! class_exists( 'PausedSubscription', false ) ) :
 					'sent_to_admin'      => true,
 					'plain_text'         => true,
 					'email'              => $this,
-                    'subscription'       => $this->subscription,
+                    'subscription'       => $subscription,
 				),
                 $this->template_base
 			);

@@ -7,6 +7,7 @@ import { __, _n } from '@wordpress/i18n';
 import PaymentInstructions from './components/PaymentInstructions';
 import PaymentUnavailable from './components/PaymentUnavailable';
 import CustomerDocumentField from './components/CustomerDocumentField';
+import { sanitizeTaxIdForApi } from '../shared/tax-id';
 
 const settings = getSetting('rm-pagbank-boleto_data', {});
 const label = decodeEntities( settings.title ) || window.wp.i18n.__( 'PagBank Connect Boleto', 'rm-pagbank-pix' );
@@ -47,18 +48,20 @@ const Content = ( props ) => {
     let instructions = settings.instructions;
     let expiry = settings.expirationTime;
     let expiryText = expiry === 1 ? __('Seu boleto vencerá amanhã.', 'rm-pagbank') : sprintf( __( 'Seu boleto vence em %d dias.', 'rm-pagbank' ), expiry );
-    let discountText = settings.hasDiscount ? settings.discountText : '';
+    let discountText = settings.hasDiscount && settings.discountText ? settings.discountText : '';
 
     instructions = `${instructions} <br> ${expiryText} <br> ${discountText}`;
 
     if (settings.paymentUnavailable) {
+        const unavailableMessage = settings.unavailableMessage
+            || __('Não disponível para pedidos inferiores a R$1,00', 'rm-pagbank');
         useEffect( () => {
             const unsubscribe = onPaymentSetup(() => {
-                console.error('PagBank indisponível para pedidos inferiores a R$1,00.');
+                console.error(unavailableMessage);
                 return {
                     type: emitResponse.responseTypes.ERROR,
                     messageContext: emitResponse.noticeContexts.PAYMENTS,
-                    message: __('PagBank indisponível para pedidos inferiores a R$1,00.', 'rm-pagbank'),
+                    message: unavailableMessage,
                 };
             });
 
@@ -69,7 +72,7 @@ const Content = ( props ) => {
 
         return (
             <div className="rm-pagbank-boleto">
-                <PaymentUnavailable />
+                <PaymentUnavailable message={unavailableMessage} />
             </div>
         );
     }
@@ -81,7 +84,7 @@ const Content = ( props ) => {
                 type: emitResponse.responseTypes.SUCCESS,
                 meta: {
                     paymentMethodData: {
-                        'rm-pagbank-customer-document': customerDocumentValue.replace(/\D/g, ''),
+                        'rm-pagbank-customer-document': sanitizeTaxIdForApi(customerDocumentValue),
                     },
                 },
             };

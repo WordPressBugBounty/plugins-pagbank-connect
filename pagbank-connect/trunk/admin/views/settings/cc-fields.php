@@ -11,27 +11,27 @@ return array(
         'label'       => __('Habilitar', 'pagbank-connect'),
         'type'        => 'checkbox',
         'description' => '',
-        'default'     => 'no',
+        'default'     => 'yes',
     ],
     'title'                                   => [
         'title'       => __('Título Principal', 'pagbank-connect'),
         'type'        => 'safe_text',
         'description' => __('Nome do meio de pagamento que seu cliente irá ver no checkout.', 'pagbank-connect'),
-        'default'     => __('Cartão de Crédito via PagBank', 'pagbank-connect'),
+        'default'     => __('Cartão de Crédito', 'pagbank-connect'),
         'desc_tip'    => true,
     ],
     'cc_installment_options'                     => [
         'title'       => __('Opções de Parcelamento', 'pagbank-connect'),
         'type'        => 'select',
         'description' => __(
-            '<a href="https://pagsegurotransparente.zendesk.com/hc/pt-br/articles/19945359660173-'
+            '<a href="https://ajuda.pbintegracoes.com/hc/pt-br/articles/19945359660173-'
             .'Op%C3%A7%C3%B5es-de-Parcelamento" target="_blank">Saiba mais</a>',
             'pagbank-connect'
         ),
         'desc_tip'    => false,
+        'default'     => 'buyer',
         'options'     => [
-            'external'  => __('Obedecer configurações da conta PagBank (padrão)', 'pagbank-connect'),
-            'buyer'     => __('Juros por conta do comprador', 'pagbank-connect'),
+            'buyer'     => __('Juros por conta do comprador (padrão)', 'pagbank-connect'),
             'fixed'     => __('Até X parcelas sem juros', 'pagbank-connect'),
             'min_total' => __('Até X parcelas sem juros dependendo do valor da parcela', 'pagbank-connect'),
         ],
@@ -66,7 +66,7 @@ return array(
         'title'       => __('Limitar parcelas?', 'pagbank-connect'),
         'type'        => 'select',
         'description' => __(
-            '<a href="https://pagsegurotransparente.zendesk.com/hc/pt-br/articles/19945359660173'
+            '<a href="https://ajuda.pbintegracoes.com/hc/pt-br/articles/19945359660173'
             .'-Op%C3%A7%C3%B5es-de-Parcelamento#limitar-parcelas" target="_blank">Saiba mais</a>',
             'pagbank-connect'
         ),
@@ -89,7 +89,7 @@ return array(
         'title'       => __('Informações de Parcelamento', 'pagbank-connect'),
         'label'       => __('Exibir informações de parcelamento na tela do produto?', 'pagbank-connect'),
         'type'        => 'checkbox',
-        'description' => 'Veja <a href="https://pagsegurotransparente.zendesk.com/hc/pt-br'
+        'description' => 'Veja <a href="https://ajuda.pbintegracoes.com/hc/pt-br'
             .'/articles/26223028355597-Exibir-informa%C3%A7%C3%B5es-de-parcelamento-na-p%C3%A1gina-de-produt'
             .'o" target="_blank">como funciona</a>.',
         'default'     => 'no',
@@ -98,7 +98,7 @@ return array(
         'title'       => __('Shortcode de parcelamento', 'pagbank-connect'),
         'label'       => __('Habilitar', 'pagbank-connect'),
         'type'        => 'checkbox',
-        'description' => 'Veja <a href="https://pagsegurotransparente.zendesk.com/hc/pt-br'
+        'description' => 'Veja <a href="https://ajuda.pbintegracoes.com/hc/pt-br'
             .'/articles/26223028355597-Exibir-informa%C3%A7%C3%B5es-de-parcelamento-na-p%C3%A1gina-de-produt'
             .'o#shortcode" target="_blank">como usar</a>.',
         'default'     => 'no',
@@ -107,7 +107,7 @@ return array(
         'title'       => __('Formato das informações de parcelamento', 'pagbank-connect'),
         'type'        => 'select',
         'description' => __(
-            '<a href="https://pagsegurotransparente.zendesk.com/hc/pt-br/articles/26223028355597'
+            '<a href="https://ajuda.pbintegracoes.com/hc/pt-br/articles/26223028355597'
             .'-Exibir-informa%C3%A7%C3%B5es-de-parcelamento-na-p%C3%A1gina-de-produto" target="_blank"'
             .'>Saiba mais </a>',
             'pagbank-connect'
@@ -121,10 +121,10 @@ return array(
     'cc_soft_descriptor'                       => [
         'title'             => __('Identificador na Fatura', 'pagbank-connect'),
         'type'              => 'text',
-        'default'           => 'CompraViaPagBank',
+        'default'           => 'CompraOnline',
         'description'       => __(
             'Nome que será exibido na fatura do Cliente. <a href="https://'
-            .'pagsegurotransparente.zendesk.com/hc/pt-br/articles/19945038495629-Identificador-na-fatura" '
+            .'ajuda.pbintegracoes.com/hc/pt-br/articles/19945038495629-Identificador-na-fatura" '
             .'target="_blank">Veja algumas dicas</a>.',
             'pagbank-connect'
         ),
@@ -133,25 +133,56 @@ return array(
             'maxlength' => 17,
         ],
     ],
+    'title_customer'                                   => [
+        'title'       => __('Título para o cliente', 'pagbank-connect'),
+        'type'        => 'safe_text',
+        'description' => __('Texto exibido ao cliente (checkout concluído, e-mail, detalhes do pedido).<br><small><a target="_blank" href="https://ajuda.pbintegracoes.com/hc/pt-br/articles/45603209754893-T%C3%ADtulo-do-cart%C3%A3o-e-placeholders/?utm_source=wordpressadmin">Placeholders disponíveis.</a></small>', 'pagbank-connect'),
+        'default'     => __('Cartão de Crédito — {installments}x de {installmentValueFormatted} ({yesNoInterest})', 'pagbank-connect'),
+        'desc_tip'    => false,
+    ],
+    'title_api'                                   => [
+        'title'       => __('Título na API (REST)', 'pagbank-connect'),
+        'type'        => 'safe_text',
+        'description' => __('Texto de payment_method_title na API WooCommerce.<br><small><a target="_blank" href="https://ajuda.pbintegracoes.com/hc/pt-br/articles/45603209754893-T%C3%ADtulo-do-cart%C3%A3o-e-placeholders/?utm_source=wordpressadmin">Placeholders disponíveis.</a></small>', 'pagbank-connect'),
+        'default'     => __('Cartão de Crédito', 'pagbank-connect'),
+        'desc_tip'    => false,
+    ],
     'cc_3ds'                                   => [
         'title'       => __('Autenticação 3D', 'pagbank-connect'),
         'label'       => __('Habilitar', 'pagbank-connect'),
         'type'        => 'checkbox',
-        'description' => 'Habilita a autenticação <a href="https://pagsegurotransparente.zendesk.com/hc/pt-br/a'
+        'description' => 'Habilita a autenticação <a href="https://ajuda.pbintegracoes.com/hc/pt-br/a'
             .'rticles/22375922278157-Autentica%C3%A7%C3%A3o-3DS-Sua-prote%C3%A7%C3%A3o-contra-Chargeback" '
             .'target="_blank">3D Secure</a> para compras com cartão de crédito. <br/>'
             .'A autenticação 3D Secure é um protocolo de segurança que adiciona uma camada extra de proteção '
             .'para compras online, <br/> e evita que chargebacks de compras não reconhecidas sejam '
             .'cobrados do lojista.',
-        'default'     => 'yes',
+        'default'     => 'no',
     ],
     'cc_3ds_allow_continue'                    => [
         'title'       => __('Quando 3D não for suportado', 'pagbank-connect'),
         'label'       => __('Permitir concluir', 'pagbank-connect'),
         'type'        => 'checkbox',
         'description' => 'Alguns cartões não possuem suporte a autenticação 3D. <br/>'
-            .'Ao marcar esta opção, o cliente poderá concluir a compra mesmo que o cartão não suporte tal recurso <br/>'
-            .'ou se a obtenção da sessão 3D Secure junto ao PagBank falhar.',
+            .'Ao marcar esta opção, o cliente poderá concluir a compra mesmo que o cartão não suporte tal recurso. <br/>'
+            .'PagBank: também se a sessão 3D Secure falhar. Vindi: cartão fora do 3DS (veres_enrolled N/U). <br/>'
+            .'Desmarcado (padrão): a compra é bloqueada — o cliente precisa de outro cartão ou método.',
+        'default'     => 'no',
+    ],
+    'cc_3ds_retry' => [
+        'title'       => __('Quando o pagamento for recusado', 'pagbank-connect'),
+        'label'       => __('Permitir tentar novamente com validação 3DS', 'pagbank-connect'),
+        'type'        => 'checkbox',
+        'description' => 'Permitir que o cliente tente finalizar o pedido usando 3DS quando a primeira tentativa for recusada. <br/>'
+            .'Esta opção só será exibida se o motivo da recusa do pagamento pelo PagBank permitir uma nova tentativa. <br/>',
+        'default'     => 'yes',
+    ],
+    'cc_allow_save_card' => [
+        'title'       => __('Permitir salvar cartão', 'pagbank-connect'),
+        'label'       => __('Habilitar opção de salvar cartão no checkout', 'pagbank-connect'),
+        'type'        => 'checkbox',
+        'description' => __('Quando habilitado, os clientes poderão salvar o cartão de crédito para compras futuras. <br/>'
+            .'Para pedidos recorrentes (assinaturas), o cartão sempre será salvo automaticamente, independente desta configuração.', 'pagbank-connect'),
         'default'     => 'no',
     ],
 );

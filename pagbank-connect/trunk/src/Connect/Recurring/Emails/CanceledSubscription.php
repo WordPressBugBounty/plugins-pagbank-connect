@@ -4,6 +4,7 @@
  *
  */
 use RM_PagBank\Connect;
+use RM_PagBank\Connect\Recurring\RecurringEmails;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -18,9 +19,10 @@ if ( ! class_exists( 'CanceledSubscription', false ) ) :
      * @author    Ricardo Martins
      * @copyright 2023 Magenteiro
      */
-    class CanceledSubscription extends WC_Email {
+    class CanceledSubscription extends RecurringEmails {
+        private $subscription;
 
-		/**
+        /**
 		 * Constructor.
 		 */
 		public function __construct() {
@@ -88,7 +90,10 @@ if ( ! class_exists( 'CanceledSubscription', false ) ) :
             
             $this->placeholders['{subscription_id}'] = $subscription->id;
             $this->placeholders['{next_bill_at}'] = gmdate('d/m/Y', strtotime($subscription->next_bill_at));
-            $this->placeholders['{canceled_at}'] = gmdate('d/m/Y', strtotime($subscription->canceled_at));
+            $this->placeholders['{canceled_at}'] = '';
+            if (isset($subscription->canceled_at)) {
+                $this->placeholders['{canceled_at}'] = gmdate('d/m/Y', strtotime($subscription->canceled_at));
+            }
             $this->subscription = $subscription;
 
 			if ( $this->is_enabled() && $this->get_recipient() ) {
@@ -104,6 +109,8 @@ if ( ! class_exists( 'CanceledSubscription', false ) ) :
 		 * @return string
 		 */
 		public function get_content_html() {
+			$subscription = $this->get_subscription_for_email( $this->subscription );
+
 			return wc_get_template_html(
 				$this->template_html,
 				array(
@@ -113,7 +120,7 @@ if ( ! class_exists( 'CanceledSubscription', false ) ) :
 					'sent_to_admin'      => true,
 					'plain_text'         => false,
 					'email'              => $this,
-					'subscription'       => $this->subscription,
+					'subscription'       => $subscription,
 				),
                 $this->template_base,
                 $this->template_base
@@ -126,6 +133,8 @@ if ( ! class_exists( 'CanceledSubscription', false ) ) :
 		 * @return string
 		 */
 		public function get_content_plain() {
+			$subscription = $this->get_subscription_for_email( $this->subscription );
+
 			return wc_get_template_html(
 				$this->template_plain,
 				array(
@@ -135,7 +144,7 @@ if ( ! class_exists( 'CanceledSubscription', false ) ) :
 					'sent_to_admin'      => true,
 					'plain_text'         => true,
 					'email'              => $this,
-                    'subscription'       => $this->subscription,
+                    'subscription'       => $subscription,
 				),
                 $this->template_base
 			);

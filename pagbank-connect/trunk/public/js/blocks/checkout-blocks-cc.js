@@ -1,16 +1,23 @@
 import {registerPaymentMethod} from '@woocommerce/blocks-registry';
 import {getSetting} from '@woocommerce/settings';
-import {useEffect} from '@wordpress/element';
+import {useEffect, useRef} from '@wordpress/element';
 import {decodeEntities} from '@wordpress/html-entities';
 import {__} from '@wordpress/i18n';
 
 import PaymentUnavailable from './components/PaymentUnavailable';
 import CreditCardForm from "./components/CreditCardForm";
 import CustomerDocumentField from './components/CustomerDocumentField';
+import { sanitizeTaxIdForApi } from '../shared/tax-id';
 import RecurringInfo from './components/RecurringInfo';
-
+import RetryInput from './components/RetryInput';
+import SavedCardInstallments from './components/SavedCardInstallments';
+import SavedCreditCardToken from './components/SavedCreditCardToken';
+import { clearVindiBlocksCardCache, runVindiBlocksCheckout } from './vindiCheckout';
+const { useSelect } = window.wp.data;
+const { checkoutStore } = window.wc?.wcBlocksData || {};
 const settings = getSetting('rm-pagbank-cc_data', {});
 const label = decodeEntities( settings.title ) || window.wp.i18n.__( 'PagBank Connect Cartão de Crédito', 'rm-pagbank-pix' );
+let showRetryInput = false;
 
 /**
  * Icon component
@@ -43,16 +50,35 @@ const Label = ( props ) => {
  */
 const Content = ( props ) => {
     const { eventRegistration, emitResponse, billing } = props;
-    const { onPaymentSetup, onCheckoutBeforeProcessing, onCheckoutSuccess, onCheckoutFail } = eventRegistration;
-
+    
+    // Safety check: ensure required props exist
+    if (!eventRegistration || !emitResponse || !billing) {
+        return null;
+    }
+    
+    const { onPaymentSetup, onCheckoutValidation: onCheckoutValidation, onCheckoutSuccess, onCheckoutFail } = eventRegistration;
+    const isCalculating = useSelect((select) => {
+        if (!checkoutStore) {
+            return false;
+        }
+        try {
+            return select(checkoutStore)?.isCalculating() || false;
+        } catch (e) {
+            return false;
+        }
+    });
+    const cartTotalRef = useRef(billing?.cartTotal?.value ?? 0);
+    const latestBillingRef = useRef(billing);
     if (settings.paymentUnavailable) {
+        const unavailableMessage = settings.unavailableMessage
+            || __('Não disponível para pedidos inferiores a R$1,00', 'rm-pagbank');
         useEffect( () => {
             const unsubscribe = onPaymentSetup(() => {
-                console.error('PagBank indisponível para pedidos inferiores a R$1,00.');
+                console.error(unavailableMessage);
                 return {
                     type: emitResponse.responseTypes.ERROR,
                     messageContext: emitResponse.noticeContexts.PAYMENTS,
-                    message: __('PagBank indisponível para pedidos inferiores a R$1,00.', 'rm-pagbank'),
+                    message: unavailableMessage,
                 };
             });
 
@@ -63,7 +89,7 @@ const Content = ( props ) => {
 
         return (
             <div className="rm-pagbank-cc">
-                <PaymentUnavailable />
+                <PaymentUnavailable message={unavailableMessage} />
             </div>
         );
     }
@@ -71,6 +97,35 @@ const Content = ( props ) => {
     let canContinue = false;
     let encryptedCard = null;
     let card3d = '';
+    let vindiPaymentProfileId = '';
+    let vindiCustomerId = '';
+    let vindiThreeDsPayload = '';
+    let vindiCompanyCode = '';
+    const isVindi = settings.partner === 'vindi';
+
+    useEffect( () => {
+        return onCheckoutFail((response) => {
+            console.error('PB Integrações: checkout fail', response);
+            // Same as classic: never reuse profile/3DS/token cache after a declined charge.
+            canContinue = false;
+            encryptedCard = null;
+            card3d = '';
+            vindiPaymentProfileId = '';
+            vindiCustomerId = '';
+            vindiThreeDsPayload = '';
+            vindiCompanyCode = '';
+            if (isVindi) {
+                clearVindiBlocksCardCache();
+            }
+            showRetryInput = settings.ccThreeDCanRetry
+                && response.processingResponse.paymentDetails.message.includes('Vamos tentar com validação 3DS');
+            return {
+                type: emitResponse.responseTypes.ERROR,
+                messageContext: emitResponse.noticeContexts.PAYMENTS,
+                message: response.processingResponse.paymentDetails.message,
+            };
+        });
+    }, [onCheckoutFail]);
 
     useEffect( () => {
         const pagBankParseErrorMessage = function(errorMessage) {
@@ -94,6 +149,7 @@ const Content = ( props ) => {
                 'must be an integer number': 'deve ser um número inteiro',
                 'card holder name must contain a first and last name': 'o nome do titular do cartão deve conter um primeiro e último nome',
                 'must be a well-formed email address': 'deve ser um endereço de e-mail válido',
+                'size must be between 6 and 9': 'deve ter entre 6 e 9 caracteres',
             };
 
             const parameters = {
@@ -178,11 +234,60 @@ const Content = ( props ) => {
             return card.encryptedCard;
         }
 
+        let current3dSession = settings.ccThreeDSession;
+        const refresh3dSession = async function () {
+            const ajaxUrl = settings.ajax_url;
+            const nonce = settings.rm_pagbank_nonce;
+            if (!ajaxUrl || !nonce) {
+                return current3dSession;
+            }
+
+            try {
+                const body = new URLSearchParams();
+                body.append('action', 'ps_get_3d_session');
+                body.append('nonce', nonce);
+                const response = await fetch(ajaxUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+                    credentials: 'same-origin',
+                    body: body.toString(),
+                });
+                const data = await response.json();
+                if (data && data.session) {
+                    current3dSession = data.session;
+                    console.debug('Sessão 3D atualizada', current3dSession);
+                    return current3dSession;
+                }
+            } catch (e) {
+                console.debug('PB Integrações: falha ao atualizar sessão 3D', e);
+            }
+
+            return current3dSession;
+        }
+
+        const getPagSeguro3dsErrorMessage = function (err) {
+            const detail = err && err.detail ? err.detail : null;
+            if (detail && Array.isArray(detail.errorMessages) && detail.errorMessages.length) {
+                return detail.errorMessages.map(error => pagBankParseErrorMessage(error)).join('\n');
+            }
+            if (detail && detail.message) {
+                if (/expired session/i.test(detail.message)) {
+                    return 'A sessão 3D Secure expirou. Recarregue a página e tente novamente.';
+                }
+                return detail.message;
+            }
+            if (err && err.message) {
+                return err.message;
+            }
+            return 'Tente novamente.';
+        }
+
         const authenticate3DS = async function (request) {
 
             //region 3ds authentication method
+            const session = await refresh3dSession();
             PagSeguro.setUp({
-                session: settings.ccThreeDSession,
+                session: session,
                 env: settings.pagbankConnectEnvironment,
             });
 
@@ -198,7 +303,7 @@ const Content = ( props ) => {
                         if (result.authenticationStatus === 'AUTHENTICATED') {
                             //O cliente foi autenticado com sucesso, dessa forma o pagamento foi autorizado.
                             card3d = result.id;
-                            console.debug('PagBank: 3DS Autenticado ou Sem desafio');
+                            console.debug('PB Integrações: 3DS Autenticado ou Sem desafio');
                             canContinue = true;
                             return Promise.resolve(true);
                         }
@@ -210,7 +315,7 @@ const Content = ( props ) => {
                         //A autenticação 3DS não ocorreu, isso pode ter ocorrido por falhas na comunicação com emissor ou bandeira, ou algum controle que não possibilitou a geração do 3DS id, essa transação não terá um retorno de status de autenticação e seguirá como uma transação sem 3DS.
                         //O cliente pode seguir adiante sem 3Ds (exceto débito)
                         if (settings.ccThreeDAllowContinue === 'yes') {
-                            console.debug('PagBank: 3DS não suportado pelo cartão. Continuando sem 3DS.');
+                            console.debug('PB Integrações: 3DS não suportado pelo cartão. Continuando sem 3DS.');
                             canContinue = true;
                             card3d = false;
                             return Promise.resolve(true);
@@ -220,34 +325,84 @@ const Content = ( props ) => {
                         return Promise.resolve(false);
                     case 'REQUIRE_CHALLENGE':
                         //É um status intermediário que é retornando em casos que o banco emissor solicita desafios, é importante para identificar que o desafio deve ser exibido.
-                        console.debug('PagBank: REQUIRE_CHALLENGE - O desafio está sendo exibido pelo banco.');
+                        console.debug('PB Integrações: REQUIRE_CHALLENGE - O desafio está sendo exibido pelo banco.');
                         canContinue = false;
                         break;
                 }
             }).catch((err) => {
-                if (err instanceof PagSeguro.PagSeguroError ) {
-                    console.error(err);
-                    console.debug('PagBank: ' + err.detail);
-                    let errMsgs = err.detail.errorMessages.map(error => pagBankParseErrorMessage(error)).join('\n');
-                    alert('Falha na requisição de autenticação 3D.\n' + errMsgs);
-                }
+                console.error(err);
+                console.debug('PB Integrações:', err && err.detail ? err.detail : err);
+                const errMsgs = getPagSeguro3dsErrorMessage(err);
+                alert('Falha na requisição de autenticação 3D.\n' + errMsgs);
                 canContinue = false;
                 return false;
             })
         }
 
-        const unsubscribe = onCheckoutBeforeProcessing(async () => {
-            console.debug('PagBank: submit');
-            console.debug('PagBank: encrypting card');
+        const unsubscribe = onCheckoutValidation(async () => {
+            console.debug('PB Integrações: submit');
+            canContinue = false;
+            encryptedCard = null;
+            card3d = '';
+            vindiPaymentProfileId = '';
+            vindiCustomerId = '';
+            vindiThreeDsPayload = '';
+            vindiCompanyCode = '';
+
+            if (isVindi) {
+                try {
+                    let selectedInstallments = document.getElementById('rm-pagbank-card-installments')?.value;
+                    if (selectedInstallments === "" || selectedInstallments === null || selectedInstallments === undefined) {
+                        selectedInstallments = 1;
+                    }
+                    const latestBillingData = latestBillingRef.current;
+                    let amountCents = Number(latestBillingData?.cartTotal?.value ?? cartTotalRef.current ?? 0);
+                    if (selectedInstallments > 1) {
+                        const selectedInstallmentData = window.ps_cc_installments?.find(
+                            (installment, idx, installments) => installments[idx].installments == selectedInstallments
+                        );
+                        if (selectedInstallmentData?.total_amount_raw) {
+                            amountCents = selectedInstallmentData.total_amount_raw;
+                        }
+                    }
+                    const result = await runVindiBlocksCheckout({
+                        settings,
+                        billing: latestBillingData || billing,
+                        amountCents,
+                        installments: selectedInstallments,
+                    });
+                    vindiCompanyCode = result.company || '';
+                    if (result.paymentProfileId) {
+                        vindiPaymentProfileId = String(result.paymentProfileId);
+                        vindiCustomerId = result.vindiCustomerId ? String(result.vindiCustomerId) : '';
+                        vindiThreeDsPayload = result.threeDsPayload || '';
+                        card3d = result.card3d || 'vindi_3ds';
+                        encryptedCard = '';
+                    } else {
+                        encryptedCard = result.gatewayToken;
+                        card3d = false;
+                    }
+                    canContinue = true;
+                } catch (err) {
+                    console.error('PagBank Vindi blocks checkout', err);
+                    alert(err && err.message ? err.message : 'Erro ao processar cartão Vindi.');
+                    canContinue = false;
+                    encryptedCard = false;
+                }
+                return;
+            }
+
+            console.debug('PB Integrações: encrypting card');
             encryptedCard = encryptCard();
             if (encryptedCard === false) {
-                console.error('PagBank: error on encrypting card');
+                console.error('PB Integrações: error on encrypting card');
                 return;
             }
 
             //if 3ds is not enabled, continue
             let treeDEnabled = settings.ccThreeDEnabled;
-            if (!treeDEnabled) {
+            let ccThreeDCanRetry = document.getElementById('rm-pagbank-card-retry-with-3ds')?.checked;
+            if (!treeDEnabled && !ccThreeDCanRetry) {
                 canContinue = true;
                 card3d = false;
                 return
@@ -261,24 +416,32 @@ const Content = ( props ) => {
             }
 
             //if 3ds is enabled, start 3ds verification
-            console.debug('PagBank: initing 3ds verification');
+            console.debug('PB Integrações: initing 3ds verification');
             async function start3dsVerification() {
                 let selectedInstallments = document.getElementById('rm-pagbank-card-installments')?.value;
                 if (selectedInstallments === "" || selectedInstallments === null || selectedInstallments === undefined) {
                     selectedInstallments = 1;
                 }
 
-                let cartTotal = billing.cartTotal.value;
+                // Always refresh with latest checkout total before 3DS request.
+                const latestBillingData = latestBillingRef.current;
+                const latestCartTotal = Number(latestBillingData?.cartTotal?.value ?? cartTotalRef.current ?? 0);
+                cartTotalRef.current = Number.isFinite(latestCartTotal) ? latestCartTotal : 0;
 
                 //if cart total is less than 100, don't continue with 3ds
-                if (cartTotal < 100) {
+                if (cartTotalRef.current < 100) {
                     canContinue = true;
                     card3d = false;
                     return true;
                 }
 
                 if (selectedInstallments > 1) {
-                    cartTotal = window.ps_cc_installments.find((installment, idx, installments)=> installments[idx].installments == selectedInstallments).total_amount_raw;
+                    const selectedInstallmentData = window.ps_cc_installments?.find(
+                        (installment, idx, installments) => installments[idx].installments == selectedInstallments
+                    );
+                    if (selectedInstallmentData?.total_amount_raw) {
+                        cartTotalRef.current = selectedInstallmentData.total_amount_raw;
+                    }
                 }
 
                 let request = {
@@ -300,30 +463,88 @@ const Content = ( props ) => {
                     }
                 }
 
+                let customerName = (billing?.billingData?.first_name || '') + ' ' + (billing?.billingData?.last_name || '');
+                if(customerName.trim() === '') {
+                    const firstNameEl = document.getElementById('billing-first_name');
+                    const lastNameEl = document.getElementById('billing-last_name');
+                    customerName = (firstNameEl?.value || '').replace(/\s/g, '')
+                        + ' ' + (lastNameEl?.value || '').replace(/\s/g, '');
+                }
+                customerName = customerName.trim().replace(/\s+/g, ' '); //removing duplicated spaces in the middle
+                customerName = customerName.replace(/[^A-Za-zÀ-ÖØ-öø-ÿ\s]/g, '').replace(/\s+/g, ' '); //removing specials
+                
+
+                const getLiveCheckoutFieldValue = (preferredSelectors, billingValue = '') => {
+                    for (const selector of preferredSelectors) {
+                        const field = document.querySelector(selector);
+                        const rawValue = (field?.value || '').toString();
+                        if (rawValue.trim() !== '') {
+                            return rawValue;
+                        }
+                    }
+
+                    return (billingValue || '').toString();
+                };
+
+                const customerEmail = getLiveCheckoutFieldValue(
+                    ['#email', 'input[name="email"]', 'input[name="billing_email"]'],
+                    latestBillingData?.billingData?.email
+                );
+
+                const customerPhone = getLiveCheckoutFieldValue(
+                    ['#billing-phone', '#billing-phone input', 'input[name="billing_phone"]', '#shipping-phone', '#shipping-phone input', 'input[name="shipping_phone"]'],
+                    latestBillingData?.billingData?.phone
+                );
+
+                const billingAddress1 = getLiveCheckoutFieldValue(
+                    ['#billing-address_1', '#billing-address_1 input', 'input[name="billing_address_1"]', '#shipping-address_1', '#shipping-address_1 input', 'input[name="shipping_address_1"]'],
+                    latestBillingData?.billingData?.address_1
+                );
+
+                const billingAddress2 = getLiveCheckoutFieldValue(
+                    ['#billing-address_2', '#billing-address_2 input', 'input[name="billing_address_2"]', '#shipping-address_2', '#shipping-address_2 input', 'input[name="shipping_address_2"]'],
+                    latestBillingData?.billingData?.address_2
+                );
+
+                const regionCode = getLiveCheckoutFieldValue(
+                    ['#billing-state', '#billing-state input', '#billing-state select', 'input[name="billing_state"]', 'select[name="billing_state"]', '#shipping-state', '#shipping-state input', '#shipping-state select', 'input[name="shipping_state"]', 'select[name="shipping_state"]'],
+                    latestBillingData?.billingData?.state
+                );
+
+                const billingAddressCity = getLiveCheckoutFieldValue(
+                    ['#billing-city', '#billing-city input', 'input[name="billing_city"]', '#shipping-city', '#shipping-city input', 'input[name="shipping_city"]'],
+                    latestBillingData?.billingData?.city
+                );
+
+                const billingAddressPostcode = getLiveCheckoutFieldValue(
+                    ['#billing-postcode', '#billing-postcode input', 'input[name="billing_postcode"]', '#shipping-postcode', '#shipping-postcode input', 'input[name="shipping_postcode"]'],
+                    latestBillingData?.billingData?.postcode
+                );
+
                 let orderData = {
                     customer: {
-                        name: billing.billingData.first_name + ' ' + billing.billingData.last_name,
-                        email: billing.billingData.email,
+                        name: customerName,
+                        email: customerEmail,
                         phones: [
                             {
                                 country: '55',
-                                area: billing.billingData.phone.replace(/\D/g, '').substring(0, 2),
-                                number: billing.billingData.phone.replace(/\D/g, '').substring(2),
+                                area: customerPhone.replace(/\D/g, '').substring(0, 2),
+                                number: customerPhone.replace(/\D/g, '').substring(2),
                                 type: 'MOBILE'
                             }]
                     },
                     amount: {
-                        value: cartTotal,
+                        value: cartTotalRef.current,
                         currency: 'BRL'
                     },
                     billingAddress: {
-                        street: billing.billingData.address_1.replace(/\s+/g, ' '),
-                        number: billing.billingData.address_1.replace(/\s+/g, ' '),
-                        complement: billing.billingData.address_2.replace(/\s+/g, ' '),
-                        regionCode: billing.billingData.state,
+                        street: billingAddress1.replace(/\s+/g, ' '),
+                        number: billingAddress1.replace(/\s+/g, ' '),
+                        complement: billingAddress2.replace(/\s+/g, ' '),
+                        regionCode: regionCode.toUpperCase(),
                         country: 'BRA',
-                        city: billing.billingData.city.replace(/\s+/g, ' '),
-                        postalCode: billing.billingData.postcode.replace(/\D+/g, '')
+                        city: billingAddressCity.replace(/\s+/g, ' '),
+                        postalCode: billingAddressPostcode.replace(/\D+/g, '')
                     }
                 };
 
@@ -351,12 +572,12 @@ const Content = ( props ) => {
         return () => {
             unsubscribe();
         };
-    }, [onCheckoutBeforeProcessing] );
+    }, [onCheckoutValidation] );
 
     useEffect( () => {
         const unsubscribe = onPaymentSetup(() => {
             if (encryptedCard === false) {
-                console.error('PagBank: error on encrypting card');
+                console.error('PB Integrações: error on encrypting card');
                 return {
                     type: emitResponse.responseTypes.ERROR,
                     messageContext: emitResponse.noticeContexts.PAYMENTS,
@@ -365,7 +586,7 @@ const Content = ( props ) => {
             }
 
             if (canContinue === false) {
-                console.error('PagBank: error during 3ds verification');
+                console.error('PB Integrações: error during 3ds verification');
                 return {
                     type: emitResponse.responseTypes.ERROR,
                     messageContext: emitResponse.noticeContexts.PAYMENTS,
@@ -377,18 +598,26 @@ const Content = ( props ) => {
             const installments = document.getElementById('rm-pagbank-card-installments')?.value || 1;
             const ccNumber = document.getElementById('rm-pagbank-card-number').value;
             const ccHolderName = document.getElementById('rm-pagbank-card-holder-name').value;
+            const card3dRetry = document.getElementById('rm-pagbank-card-retry-with-3ds');
+            const newPaymentMethod = document.getElementById('rm-pagbank-cc-new-payment-method-in-block');
 
             return {
                 type: emitResponse.responseTypes.SUCCESS,
                 meta: {
                     paymentMethodData: {
                         'payment_method': 'cc',
-                        'rm-pagbank-customer-document': customerDocumentValue.replace(/\D/g, ''),
-                        'rm-pagbank-card-encrypted': encryptedCard,
+                        'rm-pagbank-customer-document': sanitizeTaxIdForApi(customerDocumentValue),
+                        'rm-pagbank-card-encrypted': encryptedCard || '',
                         'rm-pagbank-card-installments': installments,
                         'rm-pagbank-card-number': ccNumber.replace(/\D/g, ''),
                         'rm-pagbank-card-holder-name': ccHolderName,
-                        'rm-pagbank-card-3d': card3d
+                        'rm-pagbank-card-3d': card3d || '',
+                        'rm-pagbank-card-retry-with-3ds': card3dRetry?.checked,
+                        'rm-pagbank-cc-new-payment-method-in-block': newPaymentMethod?.checked,
+                        'rm-pagbank-payment-profile-id': vindiPaymentProfileId,
+                        'rm-pagbank-vindi-customer-id': vindiCustomerId,
+                        'rm-pagbank-card-3ds-payload': vindiThreeDsPayload,
+                        'rm-pagbank-payment-company-code': vindiCompanyCode || (window.ps_vindi_payment_company || ''),
                     },
                 },
             };
@@ -399,9 +628,23 @@ const Content = ( props ) => {
         };
     }, [onPaymentSetup] );
 
+    useEffect(() => {
+        latestBillingRef.current = billing;
+    }, [billing]);
+
+    // Keep the 3DS amount in sync with the latest checkout total.
+    useEffect(() => {
+        const latestCartTotal = Number(billing?.cartTotal?.value ?? 0);
+        if (Number.isFinite(latestCartTotal) && latestCartTotal > 0) {
+            cartTotalRef.current = latestCartTotal;
+        }
+    }, [billing?.cartTotal?.value, isCalculating]);
+
     return (
         <div className="rm-pagbank-cc">
-            <CreditCardForm />
+            {showRetryInput ? <RetryInput /> : null}
+            <CreditCardForm billing={billing} />
+            <SavedCreditCardToken />
             <CustomerDocumentField />
             {settings.isCartRecurring ? <RecurringInfo /> : null}
         </div>
@@ -418,6 +661,7 @@ const Rm_Pagbank_Cc_Block_Gateway = {
     supports: {
         features: settings?.supports ?? [],
     },
+    savedTokenComponent: <SavedCardInstallments />,
 };
 
 registerPaymentMethod( Rm_Pagbank_Cc_Block_Gateway );

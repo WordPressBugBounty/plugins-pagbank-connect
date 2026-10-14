@@ -18,6 +18,49 @@ use WP_Error;
 class Params
 {
     /**
+     * @var array<string, mixed>|null
+     */
+    private static $ccFormFieldDefaults = null;
+
+    /**
+     * Defaults from admin form fields (same keys as stored in woocommerce_rm-pagbank-cc_settings).
+     *
+     * @return array<string, mixed>
+     */
+    private static function getCcFormFieldDefaults(): array
+    {
+        if (null !== self::$ccFormFieldDefaults) {
+            return self::$ccFormFieldDefaults;
+        }
+
+        $fieldsPath = dirname(__DIR__, 2) . '/admin/views/settings/cc-fields.php';
+        if (! is_readable($fieldsPath)) {
+            self::$ccFormFieldDefaults = [];
+
+            return self::$ccFormFieldDefaults;
+        }
+
+        /** @var array<string, array<string, mixed>> $fields */
+        $fields = include $fieldsPath;
+        if (! is_array($fields)) {
+            self::$ccFormFieldDefaults = [];
+
+            return self::$ccFormFieldDefaults;
+        }
+
+        $defaults = [];
+        foreach ($fields as $fieldKey => $fieldDef) {
+            if (is_array($fieldDef) && array_key_exists('default', $fieldDef)) {
+                $defaults[ (string) $fieldKey ] = $fieldDef['default'];
+            }
+        }
+
+        self::$ccFormFieldDefaults = $defaults;
+
+        return self::$ccFormFieldDefaults;
+    }
+
+    /**
      * Extract phone number and return an array with the phone object to be used in the request
      *
      * @see https://dev.pagseguro.uol.com.br/reference/phone-object
@@ -69,6 +112,20 @@ class Params
         return (int)$return;
     }
 
+    public static function getIntegrationsConfig(string $key, $default = '')
+    {
+        $settings = get_option('woocommerce_rm-pagbank-integrations_settings', []);
+        if (! is_array($settings)) {
+            $settings = [];
+        }
+
+        if (array_key_exists($key, $settings)) {
+            return $settings[$key];
+        }
+
+        return $default;
+    }
+
     /**
      * @param $key
      * @param string $default
@@ -85,17 +142,29 @@ class Params
     }
 
     /**
-     * @param $key
-     * @param string $default
+     * Credit card gateway setting: saved value if present, else form field default from cc-fields.php, else $default.
      *
-     * @return mixed|string
+     * @param string $key Setting key (same as WooCommerce gateway option key).
+     * @param mixed  $default Final fallback when the key is absent from saved settings and has no form default.
+     *
+     * @return mixed
      */
-    public static function getCcConfig($key, string $default = '')
+    public static function getCcConfig(string $key, $default = '')
     {
-        $settings = get_option('woocommerce_rm-pagbank-cc_settings');
-        if (isset($settings[$key])){
-            return $settings[$key];
+        $settings = get_option('woocommerce_rm-pagbank-cc_settings', []);
+        if (! is_array($settings)) {
+            $settings = [];
         }
+
+        if (array_key_exists($key, $settings)) {
+            return $settings[ $key ];
+        }
+
+        $formDefaults = self::getCcFormFieldDefaults();
+        if (array_key_exists($key, $formDefaults)) {
+            return $formDefaults[ $key ];
+        }
+
         return $default;
     }
 
@@ -140,6 +209,15 @@ class Params
         return get_option('woocommerce_rm-pagbank-' . $key, $default);
     }
 
+    public static function getRedirectConfig($key, string $default = '')
+    {
+        $settings = get_option('woocommerce_rm-pagbank-redirect_settings');
+        if (isset($settings[$key])){
+            return $settings[$key];
+        }
+        return $default;
+    }
+
     /**
      * Gets the max allowed installments or false if no limit
 	 *
@@ -160,35 +238,33 @@ class Params
     }
 
 	/**
-	 * Get the max installments without interest based on order total and config options
-	 * Will return '' if the option is set to get from the PagBank Config, 0 if the option is set to buyer,
-	 * a fixed number if the option is set to fixed or the calculated number based on the order total
+	 * Get the max installments without interest based on order total and config options.
+	 * Returns 0 for buyer interest (default), a fixed number for "fixed",
+	 * or the calculated number based on order total for "min_total".
+	 * Legacy saved value "external" is treated as buyer.
+	 *
 	 * @param $orderTotal
 	 *
-	 * @return false|float|int|string
+	 * @return int
 	 */
 	public static function getMaxInstallmentsNoInterest($orderTotal)
     {
-        $installment_option = self::getCcConfig('cc_installment_options', 'external');
-        if ('external' == $installment_option){
-            return '';
-        }
-
-        if ('buyer' == $installment_option) {
+        $installment_option = self::getCcConfig('cc_installment_options', 'buyer');
+        // Removed option "external" (PagBank account settings) — treat as buyer.
+        if ($installment_option === '' || $installment_option === 'external' || $installment_option === 'buyer') {
             return 0;
         }
 
-        if ('fixed' == $installment_option) {
-            return (int)self::getCcConfig('cc_installment_options_fixed', 3);
+        if ($installment_option === 'fixed') {
+            return (int) self::getCcConfig('cc_installment_options_fixed', 3);
         }
 
-//        if ('min_total' == $installment_option) {
-            $min_total = (int)self::getCcConfig('cc_installments_options_min_total', 50);
-            $min_total = max(5, $min_total); //avoiding blanks
-            $installments = floor($orderTotal / $min_total);
-            $installments = $installments == 1 ? 0 : $installments; //1 is not acceptable as a value by the api
-            return $installments > 18 ? 18 : $installments;
-//        }
+        $min_total = (int) self::getCcConfig('cc_installments_options_min_total', 50);
+        $min_total = max(5, $min_total); //avoiding blanks
+        $orderTotal = floatval($orderTotal);
+        $installments = floor($orderTotal / $min_total);
+        $installments = $installments == 1 ? 0 : $installments; //1 is not acceptable as a value by the api
+        return $installments > 18 ? 18 : $installments;
     }
 
     /**
@@ -211,6 +287,10 @@ class Params
             $params['credit_card_bin'] = '555566'; //Because test credit card numbers are not accepted by the API
         }
 
+        if(!$orderTotal || $orderTotal <= 0) {
+            return [];
+        }
+
         if ($mi = self::getMaxInstallments()) {
             $params['max_installments'] = $mi;
         }
@@ -225,7 +305,7 @@ class Params
 
         if (isset($installments['error_messages'])){
 			$return['error'] = $installments['error_messages'][0]['description'] ?? 'Erro ao calcular as parcelas';
-            Functions::log('Erro ao calcular as parcelas' . print_r([$installments['error_messages'], $params], true), 'debug');
+            Functions::log('Erro ao calcular as parcelas' . \print_r([$installments['error_messages'], $params], true), 'debug');
         }
 
         if (isset($installments['payment_methods']['credit_card'])){
@@ -260,6 +340,9 @@ class Params
 					'fees' => $installment['amount']['fees'] ?? []
                 ];
             }
+        }
+        if (function_exists('apply_filters')) {
+            $return = apply_filters('pagbank_get_installments', $return, $orderTotal, $bin);
         }
         return $return;
     }
@@ -336,6 +419,38 @@ class Params
         return 0;
     }
 
+    /**
+     * Return the discount amount for a given total (e.g. cart total). Used to display Pix discount in cart/checkout totals.
+     *
+     * @param string $configValue Discount config (e.g. "5%" or "10.00")
+     * @param float $orderTotal Total amount (cart or order total)
+     * @param bool $excludesShipping Whether to exclude shipping from the base for percentage calculation
+     * @param float $shippingTotal Shipping amount (default 0)
+     * @return float
+     */
+    public static function getDiscountValueForTotal($configValue, $orderTotal, $excludesShipping, $shippingTotal = 0.0): float
+    {
+        $total = floatval($orderTotal);
+        if ($excludesShipping) {
+            $total -= floatval($shippingTotal);
+        }
+
+        $discountType = self::getDiscountType($configValue);
+        if (!$discountType) {
+            return 0.0;
+        }
+
+        if ('FIXED' == $discountType) {
+            return floatval($configValue);
+        }
+
+        if ('PERCENT' == $discountType) {
+            return $total * (floatval($configValue) / 100);
+        }
+
+        return 0.0;
+    }
+
 	/**
 	 * Gets the message about the discount that will be displayed in the checkout page
 	 * @param $method
@@ -355,10 +470,27 @@ class Params
             case 'cc':
                 $discountConfig = self::getCcConfig('cc_discount', 0);
                 break;
+            case 'redirect':
+                $discountConfig = self::getRedirectConfig('redirect_discount', 0);
+                break;
         }
         $discountType = self::getDiscountType($discountConfig);
         if ( ! $discountType || is_wc_endpoint_url('order-pay')) {
             return '';
+        }
+
+        if ('pix' === $method || 'boleto' === $method) {
+            // Gateway notice reflects admin %/fixed amount only; omit when amount is customized via hook.
+            if (has_filter('pagbank_connect_payment_method_discount_amount')) {
+                $show_standard_discount_notice = apply_filters(
+                    'pagbank_connect_always_show_standard_discount_notice',
+                    false,
+                    $method
+                );
+                if (!$show_standard_discount_notice) {
+                    return '';
+                }
+            }
         }
 
         if ('FIXED' == $discountType){
@@ -394,7 +526,12 @@ class Params
 
         $isDynamicIcoAccessible = wp_remote_get(
             plugins_url('public/images/payment-icon.php?method=pix', WC_PAGSEGURO_CONNECT_PLUGIN_FILE),
-            ['timeout' => 10]
+            [
+                'timeout' => 10,
+                'sslverify' => false,
+                'reject_unsafe_urls' => false,
+                'user-agent' => 'WooCommerce / PagBank Integracoes',
+            ]
         );
 
         $result = (wp_remote_retrieve_response_code($isDynamicIcoAccessible) !== 200) ? 0 : 1;

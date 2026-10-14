@@ -3,6 +3,8 @@
 namespace RM_PagBank\Traits;
 
 use RM_PagBank\Connect;
+use RM_PagBank\Helpers\Recurring as RecurringHelper;
+use RM_PagBank\Helpers\Params;
 
 trait StaticResources
 {
@@ -29,7 +31,8 @@ trait StaticResources
         }
 
         $alreadyEnqueued = wp_style_is('pagseguro-connect-checkout');
-        if (is_checkout() && !$alreadyEnqueued) {
+        $recHelper = new RecurringHelper();
+        if ((is_checkout() || $recHelper->isSubscriptionUpdatePage() || is_wc_endpoint_url('add-payment-method')) && !$alreadyEnqueued) {
             $styles['pagseguro-connect-checkout'] = [
                 'src'     => plugins_url('public/css/checkout.css', WC_PAGSEGURO_CONNECT_PLUGIN_FILE),
                 'deps'    => [],
@@ -51,16 +54,7 @@ trait StaticResources
         if (self::$addedScripts) {
             return;
         }
-
-        //thank you page
-        $alreadyEnqueued = wp_script_is('pagseguro-connect');
-        if (is_checkout() && !empty(is_wc_endpoint_url('order-received')) && !$alreadyEnqueued) {
-            wp_enqueue_script(
-                'pagseguro-connect',
-                plugins_url('public/js/success.js', WC_PAGSEGURO_CONNECT_PLUGIN_FILE)
-            );
-        }
-
+        
         $alreadyEnqueued = wp_script_is('pagseguro-connect-checkout');
         if ( is_checkout() && !is_order_received_page() && !$alreadyEnqueued) {
             wp_enqueue_script(
@@ -116,11 +110,15 @@ trait StaticResources
         wp_register_script(
             'pagseguro-connect-admin-pix-notice',
             plugins_url('public/js/admin/ps-connect-admin-general.js', WC_PAGSEGURO_CONNECT_PLUGIN_FILE),
-            ['jquery']
+            ['jquery'],
+            WC_PAGSEGURO_CONNECT_VERSION,
         );
+        $woo_hold_stock_min = get_option( 'woocommerce_hold_stock_minutes');
         $scriptData = array(
             'ajaxurl' => admin_url('admin-ajax.php'),
-            'action' => 'pagbank_dismiss_pix_order_keys_notice'
+            'action' => 'pagbank_dismiss_pix_order_keys_notice',
+            'woocommerce_hold_stock_pix_validation' => !empty($woo_hold_stock_min) && intval($woo_hold_stock_min) <=  intval(Params::getPixConfig('pix_expiry_minutes')),
+            'woocommerce_hold_stock_boleto_validation' => !empty($woo_hold_stock_min) && intval($woo_hold_stock_min) <= (intval(Params::getBoletoConfig('boleto_expiry_days')) * 24 * 60)
         );
         wp_localize_script('pagseguro-connect-admin-pix-notice', 'script_data', $scriptData);
         wp_enqueue_script('pagseguro-connect-admin-pix-notice');
@@ -131,7 +129,18 @@ trait StaticResources
         if ($current_section && strpos($current_section, Connect::DOMAIN) !== false) {
             wp_enqueue_script(
                 'pagseguro-connect-admin',
-                plugins_url('public/js/admin/ps-connect-admin.js', WC_PAGSEGURO_CONNECT_PLUGIN_FILE)
+                plugins_url('public/js/admin/ps-connect-admin.js', WC_PAGSEGURO_CONNECT_PLUGIN_FILE),
+                [],
+                WC_PAGSEGURO_CONNECT_VERSION
+            );
+            
+            // Enqueue split payments repeater script
+            wp_enqueue_script(
+                'pagbank-connect-split-payments',
+                plugins_url('public/js/admin/split-payments.js', WC_PAGSEGURO_CONNECT_PLUGIN_FILE),
+                ['jquery'],
+                WC_PAGSEGURO_CONNECT_VERSION,
+                true
             );
         }
 

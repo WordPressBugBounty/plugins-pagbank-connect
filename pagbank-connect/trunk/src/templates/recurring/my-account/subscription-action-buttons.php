@@ -21,44 +21,68 @@ do_action('rm_pagbank_before_account_recurring_action_buttons', $subscription);
 if ( ! isset($subscription->id) || ! $subscription->id ) {
     return;
 }
-$isAdminEndpoint = is_admin() && ! defined( 'DOING_AJAX' );
-$cancelURL = WC()->api_request_url('rm-pagbank-subscription-edit'). '?action=cancel&id=' . $subscription->id;
-$cancelURL .= $isAdminEndpoint ? '&fromAdmin=1' : '';
+
 $actions = apply_filters('rm_pagbank_account_recurring_actions', [
     'cancel' => [
         'name' => __('Cancelar Assinatura', 'pagbank-connect'),
-        'url' => $cancelURL,
+        'url' => subscriptionActionButtonsUrl('cancel', $subscription),
         'class' => 'subscription-button cancel',
     ],
     'uncancel' => [
         'name' => __('Suspender Cancelamento', 'pagbank-connect'),
-        'url' => WC()->api_request_url('rm-pagbank-subscription-edit'). '?action=uncancel&id=' . $subscription->id,
+        'url' => subscriptionActionButtonsUrl('uncancel', $subscription),
         'class' => 'subscription-button uncancel',
     ],
     'pause' => [
         'name' => __('Pausar Assinatura', 'pagbank-connect'),
-        'url' => WC()->api_request_url('rm-pagbank-subscription-edit'). '?action=pause&id=' . $subscription->id,
+        'url' => subscriptionActionButtonsUrl('pause', $subscription),
         'class' => 'subscription-button suspend',
     ],
     'unpause' => [
         'name' => __('Resumir Assinatura', 'pagbank-connect'),
-        'url' => WC()->api_request_url('rm-pagbank-subscription-edit'). '?action=unpause&id=' . $subscription->id,
+        'url' => subscriptionActionButtonsUrl('unpause', $subscription),
         'class' => 'subscription-button suspend',
     ],
     'edit' => [
         'name' => __('Editar Assinatura', 'pagbank-connect'),
-        'url' => admin_url('admin.php?page=rm-pagbank-subscriptions-edit&action=edit&id=' . $subscription->id),
+        'url' => admin_url('admin.php?page=rm-pagbank-subscriptions-edit&_action=edit&id=' . $subscription->id) . '&fromAdmin=1',
         'class' => 'subscription-button edit',
     ],
-    // Coming soon
-    /*'update' => [
+    'update' => [
         'name' => __('Atualizar Cartão', 'pagbank-connect'),
-        'url' => WC()->api_request_url('rm-pagbank-subscription-edit'). '?action=update&id=' . $subscription->id,
+        'url' => pagbank_subscription_update_url($subscription->id),
         'class' => 'subscription-button update',
-    ]*/
+    ]
 ], $subscription);
 if ( ! empty( $actions ) ) {
     foreach ( $actions as $key => $action ) { // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
         echo '<a href="' . esc_url( $action['url'] ) . '" class="woocommerce-button ' . esc_attr( $action['class'] ) . ' button ' . sanitize_html_class( $key ) . '">' . esc_html( $action['name'] ) . '</a>';
     }
 }
+
+function subscriptionActionButtonsUrl($endpoint, $subscription){
+
+    if ( ! $subscription || ! isset($subscription->id) ) {
+        return false;
+    }
+
+    $isAdmin = is_admin() && ! defined( 'DOING_AJAX' );
+    $url = \RM_PagBank\Helpers\Recurring::subscriptionActionUrl($endpoint, $subscription);
+    $url .= $isAdmin ? '&fromAdmin=1' : '';
+    return $url;
+
+}
+
+function pagbank_subscription_update_url($subscription_id) {
+    global $wp_rewrite;
+    if (! $wp_rewrite->using_permalinks()) {
+        // Default permalinks: use query string
+        $account_page_id = wc_get_page_id('myaccount');
+        $url = get_permalink($account_page_id);
+        $url = add_query_arg('rm-pagbank-subscriptions-update', $subscription_id, $url);
+        return $url;
+    } 
+    //else
+    return wc_get_account_endpoint_url('rm-pagbank-subscriptions-update/' . $subscription_id);   
+}
+

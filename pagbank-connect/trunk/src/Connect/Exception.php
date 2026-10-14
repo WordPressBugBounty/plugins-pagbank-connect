@@ -38,7 +38,15 @@ class Exception extends \Exception
         foreach ($error_messages as $error) {
             $original_error_messages[] = ($error['code'] ?? '').' - '.($error['description'] ?? '' ).' ('.($error['parameter_name'] ?? '')
                 .')';
-            $msg = $this->errors[$error['code']] ? $this->getFriendlyMsgWithErrorCode($error) : $this->getFriendlyMessageWithoutErrorCode($error);
+            $msg = array_key_exists(($error['code'] ?? ''), $this->errors) 
+                ? $this->getFriendlyMsgWithErrorCode($error) 
+                : $this->getFriendlyMessageWithoutErrorCode($error);
+
+            if (isset($error['parameter_name'])){
+                $friendlyParamName = $this->getFriendlyParameterName($error['parameter_name']);
+                $msg .= ' (' . $friendlyParamName . ')';
+            }
+
             $message[] = $msg;
         }
 
@@ -55,30 +63,48 @@ class Exception extends \Exception
      */
     public function getFriendlyParameterName(string $parameterName): string
     {
-        if ($parameterName === 'customer.tax_id') {
-            return $parameterName . ' - ' . esc_html(__('CPF/CNPJ', 'pagbank-connect'));
-        } elseif ($parameterName === 'charges[0].payment_method.boleto.due_date') {
-            return $parameterName . ' - ' . esc_html(__('Data de vencimento do boleto', 'pagbank-connect'));
-        } elseif (strpos($parameterName, 'locality') !== false) {
-            return $parameterName . ' - ' . esc_html(__('Bairro', 'pagbank-connect'));
-        } elseif (strpos($parameterName, 'address.number') !== false) {
-            return $parameterName . ' - ' . esc_html(__('Número do Endereço', 'pagbank-connect'));
-        } elseif (strpos($parameterName, 'address.city') !== false) {
-            return $parameterName . ' - ' . esc_html(__('Cidade do Endereço', 'pagbank-connect'));
-        } elseif (strpos($parameterName, 'address.region') !== false) {
-            return $parameterName . ' - ' . esc_html(__('Estado do Endereço', 'pagbank-connect'));
-        } elseif ($parameterName === 'charges[0].payment_method.authentication_method.id') {
-            return esc_html(__('Autenticação 3D - Recarregue e tente novamente', 'pagbank-connect'));
-        } elseif ($parameterName === 'charges[0].payment_method.card.encrypted') {
-            return esc_html(__('Criptografia do cartão', 'pagbank-connect'));
-        } elseif ($parameterName === 'customer.name') {
-            return esc_html(__('Nome do Cliente', 'pagbank-connect'));
-        } elseif ($parameterName === 'customer.phones[0].number') {
-            return esc_html(__('Telefone', 'pagbank-connect'));
-        } elseif ($parameterName === 'customer.email') {
-            return esc_html(__('E-mail do Cliente', 'pagbank-connect'));
+        // Exact matches that don't include parameter name prefix
+        $exactMatchesNoPrefix = [
+            'charges[0].payment_method.authentication_method.id' => __('Autenticação 3D - Recarregue e tente novamente', 'pagbank-connect'),
+            'charges[0].payment_method.card.encrypted' => __('Criptografia do cartão', 'pagbank-connect'),
+            'customer.tax_id' => __('CPF/CNPJ', 'pagbank-connect'),
+            'customer.registry_code' => __('CPF/CNPJ', 'pagbank-connect'),
+            'registry_code' => __('CPF/CNPJ', 'pagbank-connect'),
+            'tax_id' => __('CPF/CNPJ', 'pagbank-connect'),
+            ''
+        ];
+
+        if (isset($exactMatchesNoPrefix[$parameterName])) {
+            return esc_html($exactMatchesNoPrefix[$parameterName]);
         }
-        
+
+        // Exact matches - using array for better performance and readability
+        $exactMatches = [
+            'charges[0].payment_method.boleto.due_date' => __('Data de vencimento do boleto', 'pagbank-connect'),
+            'customer.name' => __('Nome do Cliente', 'pagbank-connect'),
+            'customer.phones[0].number' => __('Telefone', 'pagbank-connect'),
+            'customer.email' => __('E-mail do Cliente', 'pagbank-connect'),
+            'customer.phone.number' => __('Telefone do Cliente', 'pagbank-connect'),
+        ];
+
+        if (isset($exactMatches[$parameterName])) {
+            return $parameterName . ' - ' . esc_html($exactMatches[$parameterName]);
+        }
+
+        // Pattern matches - checked in order of specificity
+        $patternMatches = [
+            'locality' => __('Bairro', 'pagbank-connect'),
+            'address.number' => __('Número do Endereço', 'pagbank-connect'),
+            'address.city' => __('Cidade do Endereço', 'pagbank-connect'),
+            'address.region' => __('Estado do Endereço', 'pagbank-connect'),
+        ];
+
+        foreach ($patternMatches as $pattern => $friendlyName) {
+            if (strpos($parameterName, $pattern) !== false) {
+                return $parameterName . ' - ' . esc_html($friendlyName);
+            }
+        }
+
         return $parameterName;
     }
 
@@ -92,16 +118,15 @@ class Exception extends \Exception
     public function getFriendlyMsgWithErrorCode($error)
     {
         if (isset($this->errors[$error['code']])) {
-            $friendlyParamName = $this->getFriendlyParameterName($error['parameter_name'] ?? '');
-            $parameterName = isset($error['parameter_name']) ? 
-                __(' Parâmetro: ', 'pagbank-connect') . $error['parameter_name'] : '';
-            $friendlyParam = isset($error['parameter_name']) ? ' (' . $friendlyParamName . ')' : '';
             $msg = $this->getFriendlyMsg($error);
-            return $error['code'] . ' - ' . $msg . $parameterName . $friendlyParam;
+            return $error['code'] . ' - ' . $msg;
         }
     }
     public function getFriendlyMessageWithoutErrorCode($error)
     {
+        if (!isset($error['message']) && isset($error['description'])) {
+            return $this->getFriendlyMsg($error);
+        }
         switch ($error['message']) {
             case 'CARD_CANNOT_BE_STORED':
                 return __(
@@ -140,6 +165,9 @@ class Exception extends \Exception
                     );
                     break;
                 case 'must not be blank':
+                case 'não pode ficar em branco':
+                case 'nao pode ficar em branco':
+                case 'cannot be blank':
                     return __(
                         'Valor obrigatório.',
                         'pagbank-connect'
@@ -181,6 +209,51 @@ class Exception extends \Exception
                         'pagbank-connect'
                     );
                     break;
+                case 'Field has an invalid value. Please check the documentation.':
+                    return __('
+                        Campo com valor inválido. Por favor, verifique a documentação.',
+                        'pagbank-connect'
+                    );
+                case 'Field cannot be empty.':
+                    return __(
+                        'O campo não pode estar vazio.',
+                        'pagbank-connect'
+                    );
+                case 'The option field or value field are invalids. Please check the documentation.':
+                    return __(
+                        'Os campos de opção ou valor são inválidos. Por favor, verifique a documentação.',
+                        'pagbank-connect'
+                    );
+                case 'The payment method is not valid to be configured.':
+                    return __(
+                        'O método de pagamento não é válido para ser configurado.',
+                        'pagbank-connect'
+                    );
+                case 'Field shipping has an invalid configuration. Please check the documentation.':
+                    return __(
+                        'O campo de frete possui uma configuração inválida. Por favor, verifique a documentação.',
+                        'pagbank-connect'
+                    );
+                case 'There are some syntax errors in the request payload. Please check the documentation.':
+                    return __(
+                        'Há alguns erros de sintaxe na solicitação. Por favor, verifique a documentação e os logs.',
+                        'pagbank-connect'
+                    );
+                case 'This receiver is already responsible for paying the chargeback. You can inform another receiver as responsible for being the chargeback debtor.':
+                    return __(
+                        'Este recebedor já está responsável por pagar o chargeback. Você pode informar outro receptor como responsável por ser o devedor do chargeback.',
+                        'pagbank-connect'
+                    );
+                case 'Receivers amount must be informed.':
+                    return __(
+                        'O valor pago aos recebedores deve ser informado.',
+                        'pagbank-connect'
+                    );
+                case '3DS AUTHENTICATION IS NOT VALID METHOD FOR SPLIT TRANSACTIONS WITH LIABLE CONFIGURATION':
+                    return __(
+                        'A autenticação 3D não é um método válido para transações com configuração de responsabilidade do receptor (liable).',
+                        'pagbank-connect'
+                    );
                 default:
                     return $this->errors[$error['code']] ?? $error['description'];
             }

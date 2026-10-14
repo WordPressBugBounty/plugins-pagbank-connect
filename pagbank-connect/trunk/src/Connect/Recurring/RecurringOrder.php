@@ -9,6 +9,7 @@ use RM_PagBank\Connect\Payments\CreditCard;
 use RM_PagBank\Connect\Payments\Pix;
 use RM_PagBank\Helpers\Api;
 use RM_PagBank\Helpers\Functions;
+use RM_PagBank\Helpers\Params;
 use RM_PagBank\Helpers\Recurring;
 use WC_Data_Exception;
 use WC_Meta_Data;
@@ -17,6 +18,7 @@ use WC_Order_Item_Product;
 use WC_Order_Item_Shipping;
 use WC_Product;
 use WP_Error;
+use RM_PagBank\Helpers\OrderMeta;
 
 /**
  * Related to recurring orders and its creations
@@ -41,9 +43,56 @@ class RecurringOrder
     {
         $subscription = $this->subscription;
         $initialOrder = wc_get_order($subscription->initial_order_id);
+        
+        if (!$initialOrder) {
+            Functions::log('Pedido inicial não encontrado pra assinatura ' . esc_attr($subscription->id) . '. Recorrência não foi processada.', 'error', [
+                'subscription' => $subscription->id,
+            ]);
+            return;
+        }
+
+        // PagBank subscription + Vindi Connect Key (or inverse): wait for card update — do not charge or cancel.
+        if (Recurring::isRecurringPartnerMismatch($subscription->payment_info ?? null)) {
+            $recurring = new \RM_PagBank\Connect\Recurring();
+            $recurring->suspendForPartnerMismatch($subscription);
+            return;
+        }
+
+        // CORREÇÃO: Verificar se assinatura SUSPENDED ainda tem tentativas restantes antes de criar pedido
+        if ($subscription->status == 'SUSPENDED') {
+            // Buscar valor atualizado do banco para evitar race conditions
+            global $wpdb;
+            $currentSubscription = $wpdb->get_row($wpdb->prepare(
+                "SELECT retry_attempts_remaining FROM {$wpdb->prefix}pagbank_recurring WHERE id = %d",
+                $subscription->id
+            ));
+            
+            $retryAttemptsRemaining = $currentSubscription ? (int)$currentSubscription->retry_attempts_remaining : null;
+            
+            if (empty($retryAttemptsRemaining) || $retryAttemptsRemaining <= 0) {
+                Functions::log(
+                    sprintf(
+                        'Assinatura #%d está SUSPENDED sem tentativas restantes (%s). Não será criado novo pedido.',
+                        $subscription->id,
+                        $retryAttemptsRemaining ?? 'NULL'
+                    ),
+                    'info'
+                );
+                
+                // Cancelar assinatura se ainda não foi cancelada
+                $recurring = new \RM_PagBank\Connect\Recurring();
+                $recurring->cancelSubscription(
+                    $subscription,
+                    __('Pagamento recusado durante a renovação da assinatura. Número de tentativas de cobrança esgotado.', 'pagbank-connect'),
+                    'FAILURE'
+                );
+                return;
+            }
+        }
+
+        $recHelper = new Recurring();
 
         // calculate total before new order creation
-        $recHelper = new Recurring();
         $total = $subscription->recurring_amount;
         $hasDiscount = $recHelper->hasSubscriptionDiscountRemaining($subscription);
         if ($hasDiscount) {
@@ -58,11 +107,19 @@ class RecurringOrder
         
         /** @var WC_Order_Item_Product $item */
         foreach ($initialOrder->get_items() as $item){
-            /** @var WC_Order_Item_Product $itemObj */
-            $itemObj = wc_get_product($item->get_product_id());
+            /** @var WC_Product|null|false $itemObj */
+            $product_id = $item->get_variation_id() ?: $item->get_product_id();
+            $itemObj = wc_get_product($product_id);
+            if (!$itemObj || !is_object($itemObj) || !$itemObj->exists()) {
+                Functions::log('Produto de pedido recorrente não encontrado. Recorrência não foi processada.', 'error', [
+                    'subscription' => $subscription->id,
+                    'item' => $item->get_id() ?: '',
+                ]);
+                continue;
+            }
             $itemObj->update_meta_data('_frequency', $initialOrder->get_meta('_recurring_frequency'));
             $itemObj->update_meta_data('_cycle', $initialOrder->get_meta('_recurring_cycle'));
-
+            $itemObj->set_price($item->get_total('edit')); // Note that this is not the charged amount
             $order->add_product($itemObj, $item->get_quantity('edit'));
         }
 
@@ -89,15 +146,34 @@ class RecurringOrder
                 $initialOrder->get_meta('_recurring_cycle'),
             )
         );
-        $order->add_meta_data('_pagbank_is_recurring', true);
+        OrderMeta::set($order, '_is_recurring', true);
         $this->addMetaFromOriginalOrder($order, $initialOrder);
+
+        $order->add_meta_data(
+            '_rm_pagbank_checkout_blocks',
+            $initialOrder->get_meta('_rm_pagbank_checkout_blocks'), true);
+
+        if($initialOrder->get_meta('_rm_pagbank_customer_document')) {
+            $order->add_meta_data(
+                '_rm_pagbank_customer_document',
+                $initialOrder->get_meta('_rm_pagbank_customer_document'),
+                true
+            );
+        }
 
         $order->save();
 
-        $this->processSubscriptionPayment($order, $subscription);
+        try {
+            $this->processSubscriptionPayment($order, $subscription);
+        } catch (\Exception $e) {
+            do_action('pagbank_recurring_failed_process_subscription_payment', $subscription, $order, $e);
+        }
 
-
-//        $this->updateSubscription($subscription, $order);
+        $canContinue = $recHelper->hasSubscriptionChargeRemaining($subscription);
+        if (!$canContinue) {
+            $recurring = new \RM_PagBank\Connect\Recurring();
+            $recurring->completeSubscription($subscription);
+        }
     }
     
 
@@ -117,6 +193,15 @@ class RecurringOrder
             throw new Exception('Erro ao decodificar informações de pagamento para subscription ' . esc_attr($subscription->id));
         }
         
+        if(!isset($paymentInfo->method)){
+            $recurring->cancelSubscription(
+                $subscription->id,
+                __('Método de pagamento não encontrado.', 'pagbank-connect'),
+                'FAILURE'
+            );
+            throw new Exception('Método de pagamento não encontrado para subscription ' . esc_attr($subscription->id));
+        }
+        
         $payment_method = $paymentInfo->method;
 
         switch ($payment_method) {
@@ -129,26 +214,25 @@ class RecurringOrder
                 $params = $method->prepare();
                 break;
             case 'credit_card':
-                $order->add_meta_data(
-                    'pagbank_card_installments',
-                    1,
-                    true
-                );
-                $order->add_meta_data(
-                    'pagbank_card_last4',
-                    substr($paymentInfo->card->number, -4),
-                    true
-                );
-                $order->add_meta_data(
-                    '_pagbank_card_first_digits',
-                    substr($paymentInfo->card->number, 0, 6),
-                    true
-                );
-                $order->add_meta_data(
-                    '_pagbank_card_holder_name',
-                    $paymentInfo->card->holder_name,
-                    true
-                );
+                OrderMeta::set($order, 'card_installments', 1, true);
+                OrderMeta::set($order, 'card_last4', substr($paymentInfo->card->number, -4), true);
+                OrderMeta::set($order, '_card_first_digits', substr($paymentInfo->card->number, 0, 6), true);
+                OrderMeta::set($order, '_card_holder_name', $paymentInfo->card->holder_name, true);
+                // Only treat card.id as Vindi payment_profile when the subscription was saved on Vindi.
+                if (Recurring::subscriptionPaymentPartner($paymentInfo) === \RM_PagBank\Partner\Partner::VINDI) {
+                    $profileId = (int) ($paymentInfo->card->id ?? 0);
+                    if ($profileId > 0) {
+                        OrderMeta::set($order, '_payment_profile_id', $profileId, true);
+                    }
+                    $vindiCustomerId = (int) ($paymentInfo->vindi_customer_id ?? 0);
+                    if ($vindiCustomerId > 0) {
+                        OrderMeta::set($order, '_vindi_customer_id', $vindiCustomerId, true);
+                    }
+                }
+                if (Recurring::isRecurringPartnerMismatch($paymentInfo)) {
+                    $recurring->suspendForPartnerMismatch($subscription);
+                    return 0;
+                }
                 $method = new CreditCard($order);
                 $params = $method->prepare();
                 break;
@@ -163,7 +247,7 @@ class RecurringOrder
                 );
         }
 
-        $order->add_meta_data('pagbank_payment_method', $method->code, true);
+        OrderMeta::set($order, 'payment_method', $method->code, true);
         
         try {
             $api = new Api();
@@ -174,6 +258,18 @@ class RecurringOrder
             }
 
         } catch (Exception $e) {
+            // Partner mismatch (or API asking for Vindi profile on a PagBank card): suspend + retoken, never cancel.
+            if (
+                Recurring::isRecurringPartnerMismatch($paymentInfo)
+                || (
+                    Recurring::isMissingPaymentProfileError($e->getMessage())
+                    && (new Api())->partner()->isVindi()
+                    && Recurring::subscriptionPaymentPartner($paymentInfo) !== \RM_PagBank\Partner\Partner::VINDI
+                )
+            ) {
+                $recurring->suspendForPartnerMismatch($subscription);
+                throw $e;
+            }
             $recurring->cancelSubscription($subscription, $e->getMessage(), 'FAILURE');
             throw $e;
         }
@@ -184,13 +280,36 @@ class RecurringOrder
 
         // region Immediately decline if payment method is credit card and charge was declined
         if ($payment_method == 'credit_card' && $charge !== false) {
-            if ($charge['status'] == 'DECLINED'){
-                //@TODO suspend subscription instead of cancelling
-                $recurring->cancelSubscription(
-                    $subscription->id,
+            if ($charge['status'] == 'DECLINED' && $subscription->status != 'SUSPENDED'){
+                $canRetry = wc_string_to_bool(Params::getRecurringConfig('recurring_retry_charge', 'yes'));
+                if (!$canRetry) {
+                    $recurring->cancelSubscription(
+                        $subscription->id,
+                        __('Pagamento recusado durante a renovação da assinatura.', 'pagbank-connect'),
+                        'FAILURE'
+                    );
+                }
+
+                $retryAttemptsRemaining = (int) Params::getRecurringConfig('recurring_retry_attempts', '3') - 1;
+                $recurring->suspendSubscription(
+                    $subscription,
                     __('Pagamento recusado durante a renovação da assinatura.', 'pagbank-connect'),
-                    'FAILURE'
+                    $retryAttemptsRemaining
                 );
+            }
+
+            if ($charge['status'] == 'DECLINED' && $subscription->status == 'SUSPENDED'){
+                $retryAttemptsRemaining = $subscription->retry_attempts_remaining;
+                if (!$retryAttemptsRemaining) {
+                    $recurring->cancelSubscription(
+                        $subscription,
+                        __('Pagamento recusado durante a renovação da assinatura. Número de tentativas de cobrança esgotado.', 'pagbank-connect'),
+                        'FAILURE'
+                    );
+                    return 0;
+                }
+
+                $recurring->updateSuspendedSubscription($subscription);
             }
         }
         // endregion

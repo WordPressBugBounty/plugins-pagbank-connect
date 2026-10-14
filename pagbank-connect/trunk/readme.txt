@@ -1,41 +1,95 @@
-=== PagBank / PagSeguro Connect para WooCommerce ===
+=== PagBank / PagSeguro e Vindi para WooCommerce ===
 Contributors: martins56
-Tags: pagseguro, pagbank, pix, cartão de crédito, pagamento
+Tags: pagseguro, pagbank, pix, woocommerce, pagamento
 Donate link: https://github.com/sponsors/r-martins
 Requires at least: 4.0
-Tested up to: 6.6
+Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 4.22.1
+Stable tag: 5.0.0
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
-PIX, Cartão de Crédito, Boleto, Recorrência + Envio Fácil e com taxas ainda menores no PagSeguro.
-Autenticação 3D: menos chargeback e mais aprovações.
+PagBank ou Vindi com PIX, Cartão de Crédito, Recorrência + Envio Fácil com Taxas Ainda Menores.
+Conecte. Converta. Cresça. 99% de aprovação.
 
 == Description ==
 
-**Aceite PagSeguro e PagBank (Pix, Cartão de Crédito, Boleto) em sua loja WooCommerce.**
+**Aceite PagBank ou Vindi (Pix, Cartão de Crédito, Boleto) em sua loja WooCommerce.**
 
-**Economize nas tarifas oficiais do PagBank.** Receba no crédito à vista **a partir de 3,05% + R$0,00** de taxa de intermediação e PIX na hora por 0,99%. [Veja tabela completa](https://pbintegracoes.com/compare/?utm_source=readme&utm_content=tabela-comparativa).
+# 🛑 **AVISO IMPORTANTE:** É HORA DE MIGRAR, VENDER AINDA MAIS E PAGAR AINDA MENOS
 
-Esta é a **forma mais fácil e gratuita de integrar sua loja com PagBank (PagSeguro)**.
-Ao instalar e configurar nossa integração, você pode aceitar Pix, Boleto e Cartão de Crédito com o meio de pagamento mais confiado pelos brasileiros.
+Devido a uma mudança estratégica, o PagBank decidiu não aceitar novas lojas do [PB Integrações](https://pbintegracoes.com) (Parceiro oficial desde 2014).
 
-⭐️Agora com taxas ainda menores (desde Agosto), válidas para lojas antigas e novas.⭐️
+Por isso, agora oferecemos a nova parceria com a Vindi Pagamentos.
 
-===Economize nas taxas ⚡===
-Ao invés de pagar 3,99% + R$0,40 ou 4,99% + R$0,40 por transação aprovada no Cartão de Crédito, você pode optar por:
-1. **Recebimento em 30 dias**: **3,05% + R$0,00** por transação aprovada no Cartão de Crédito
-2. **Recebimento em 14 dias**: 3,97% + R$0,00 por transação aprovada no Cartão de Crédito
-3. **PIX**: sempre 0,99% com recebimento na hora
-4. **Boleto**: sempre 1,99% com recebimento em 2 dias
+Mesma integração. Mesma equipe. Mesmos recursos (e mais por vir). 
+
+Taxas *muito* menores. E claro, mais aprovação.
+
+Você só precisará atualizar para última versão (5.x ou superior) e [obter uma nova connect key](https://pbintegracoes.com/autorizar) gratuitamente.
+
+
+
+**🌟Parceiro dos melhores gateways de pagamento desde 2014.**
+
+**Economize nas taxas e converta ainda mais.** Receba no crédito à vista **a partir de 2,99% + R$0,00** de taxa de intermediação e PIX na hora por 0,60%. [Veja tabela completa](https://pbintegracoes.com/taxas/?utm_source=readme&utm_content=taxas).
+
+O **melhor plugin de pagamentos** do Brasil.
+
+Com **recursos exclusivos**, de código aberto e gratuito. Integre seu WooCommerce com PagBank (PagSeguro) agora.
+
+Receba Pix, Boleto e Cartão de Crédito no seu WooCommerce em minutos. 
+
+Veja nosso [**passo a passo de instalação**](https://pbintegracoes.com/woocommerce/?utm_source=readme&utm_content=passoapasso#instrucoes) simplificado com vídeos.
+
+**📈 Conecte, converta, cresça. 👏 Feito pra quem compara e toma as próprias decisões.**
+
+🚀️Atualizações quase todas as semanas, suporte e [instalação gratuita](https://pbintegracoes.com/woocommerce/agenteinstala/?utm_source=readme&utm_content=agenteinstala), e taxas cada vez menores para lojas antigas e novas.
+
+**🏆 TOP 1 em pagamentos WooCommerce no Brasil! 100% Gratuito!**
+
+=== ⚡️Taxas menores pra você, mais lucro pra crescer===
+Economize milhares de reais ao ano em taxas de transação e receba direto na conta bancária de sua escolha.
+1. **Recebimento em 30 dias**: **2,99% + R$0,00** por transação aprovada no Cartão de Crédito (mais popular)
+2. **Recebimento em 14 dias**: 3,89% + R$0,00 por transação aprovada no Cartão de Crédito
+3. **PIX**: 0,60% ou 0,70% (min R$0,10) com recebimento em até 1 dia útil
+4. **Boleto**: sempre 2,49% com recebimento em 2 dias
 
 Se você tiver taxas negociadas ou condições negociadas melhores que estas, você também pode utilizá-las.
 
 Consulte mais sobre elas e compare no [nosso site](https://pbintegracoes.com/compare/?utm_source=readme&utm_content=taxas).
 
-https://www.youtube.com/watch?v=wnzA0KQZCQs
+== ⚡️ PRINCIPAIS RECURSOS ==
+* Pagamentos sem sair da loja com **PIX**, **Cartão de Crédito**, **Boleto** ou **Checkout PagBank** (redirect/link).
+* Venda clubes e assinaturas com [**pagamento recorrente**](https://ajuda.pbintegracoes.com/hc/pt-br/sections/20410120690829-Recorr%C3%AAncia-e-Clube-de-Assinatura-com-WooCommerce), sem depender de outros plugins 🤯
+* **OnlyFans** - Restrição de conteúdo só para assinantes. Restrinja o acesso à páginas e categorias somente pra quem é assinante. [Veja como](https://www.magenteiro.com/blog/wp/restricao-conteudo-para-assinantes-wordpress/).
+* Integração com [**Envio Fácil**](https://ajuda.pbintegracoes.com/hc/pt-br/articles/19944920673805-Envio-F%C3%A1cil-com-WooCommerce) (economize até 70% no frete com Correios e Jadlog) sem precisar de contrato
+* Suporte nativo ao [**checkout em Blocos**](https://ajuda.pbintegracoes.com/hc/pt-br/articles/31097182009741-Suporte-ao-Checkout-em-Blocos) do WooCommerce (sem gambiarras com iframes), Checkout Legado, Fluid Checkout e muitos outros.
+* 🔒 [**Autenticação 3D**](https://ajuda.pbintegracoes.com/hc/pt-br/articles/22375922278157-Autentica%C3%A7%C3%A3o-3DS-Sua-prote%C3%A7%C3%A3o-contra-Chargeback) para acabar com chargebacks e aumentar aprovação. Pode ser configurado somente para pagamentos negados na primeira tentativa.
+* [**Reembolso** parcial ou total](https://ajuda.pbintegracoes.com/hc/pt-br/articles/30882664582541-Reembolso-total-ou-Parcial) direto do painel do WooCommerce
+* Atualização de pedidos automática, inclusive com [confirmação de pagamento instantâneo PIX](https://ajuda.pbintegracoes.com/hc/pt-br/articles/31097176784653-Confirma%C3%A7%C3%A3o-Instant%C3%A2nea-de-Pagamento-PIX) com [comportamento configurável](https://ajuda.pbintegracoes.com/hc/pt-br/articles/34191612071437-Comportamento-ao-confirmar-pagamento).
+* Infinitas [**opções de parcelamento**](https://ajuda.pbintegracoes.com/hc/pt-br/articles/19945359660173-Op%C3%A7%C3%B5es-de-Parcelamento) ∞
+* 💳 [Salvar Cartão](https://ajuda.pbintegracoes.com/hc/pt-br/articles/38366350272397-Salvar-Cart%C3%A3o-de-Cr%C3%A9dito-no-WooCommerce) - Permite que seus clientes salvem o token do cartão de crédito para compras futuras, sem precisar digitar os dados novamente.
+* **Divisão de Pagamentos** entre contas (Split). Seja sócio das lojas que você cria. Ou crie Marketplaces com WooCommerce e Dokan (integração nativa). Em breve na Vindi também.
 
-Criado por Ricardo Martins (**Parceiro oficial PagBank/PagSeguro desde 2014**), esta é a 4ª geração das integrações PagSeguro, disponibilizadas desde 2014 no Magento, e desde 2019 no WooCommerce. Mais de 20 mil lojas atendidas e mais de 200 milhões de reais transacionados em nossas integrações.
+== ⚡️ RECURSOS ADICIONAIS ==
+* Suporte a [**descontos** no boleto e pix](https://ajuda.pbintegracoes.com/hc/pt-br/articles/19945430928909-Oferecer-Desconto-Pix-e-Boleto) (percentual ou fixo) e [Regras personalizadas de desconto](https://ajuda.pbintegracoes.com/hc/pt-br/articles/45632701768077-Descontos-PIX-ou-Boleto-com-regras-personalizadas-avan%C3%A7adas)
+* Permite definir [**validade** de boletos e código PIX](https://ajuda.pbintegracoes.com/hc/pt-br/articles/24770387325837-Cancelamento-autom%C3%A1tico-de-pedidos-PIX-expirados) (em dias ou minutos)
+* Atualizações automáticas de **status de pedidos** mesmo que sua loja bloqueie as notificações automáticas do PagBank
+* Opção de [forçar atualização](https://github.com/r-martins/PagBank-WooCommerce/releases/tag/4.31.0) de um pedido manualmente ou automaticamente
+* Permite adicionar [código JavaScript ou redirecionar](https://ajuda.pbintegracoes.com/hc/pt-br/articles/34191612071437-Comportamento-ao-confirmar-pagamento) o cliente após a confirmação de pagamento.
+* Configure como quer exibir o [nome da loja na fatura do cartão de crédito](https://ajuda.pbintegracoes.com/hc/pt-br/articles/19945038495629-Identificador-na-fatura)
+* Diversas [opções de configuração de endereço](https://ajuda.pbintegracoes.com/hc/pt-br/articles/20835022998029-Configura%C3%A7%C3%B5es-de-Endere%C3%A7o-de-Entrega)
+* Suporte nativo a [High-Performance Order Storage (**HPOS**)](https://woo.com/document/high-performance-order-storage/)
+* Suporte a produtos fracionados/decimais
+* Exibição de [informações de **parcelas na página de produto** em 3 formatos diferentes](https://ajuda.pbintegracoes.com/hc/pt-br/articles/26223028355597-Exibir-informa%C3%A7%C3%B5es-de-parcelamento-na-p%C3%A1gina-de-produto)
+* **Hooks** disponíveis para facilitar integrações e modificações que você queira fazer sem sobrescrever o plugin. [Veja documentação](https://ajuda.pbintegracoes.com/hc/pt-br/articles/27339148022669-Hooks-Filtros-e-A%C3%A7%C3%B5es-Dispon%C3%ADveis).
+* Maior taxa de aprovação e estabilidade nas chamadas das APIs PagBank com [retentativa transparente](https://ajuda.pbintegracoes.com/hc/pt-br/articles/4695328655245-Porque-as-transa%C3%A7%C3%B5es-pelo-modelo-de-aplica%C3%A7%C3%A3o-t%C3%AAm-mais-sucesso) em caso de falha.
+* Use a mesma conta PagBank/Vindi e a mesma Connect Key para integrar **várias lojas** WooCommerce, sem precisar de uma Connect Key para cada loja.
+* Integração com Marketplace Dokan para divisão de pagamentos entre múltiplos vendedores (split, multivendor). [Saiba mais](https://ajuda.pbintegracoes.com/hc/pt-br/articles/40558023581965-Dokan-Split-Divis%C3%A3o-de-Pagamentos-para-Marketplace).
+
+https://www.youtube.com/watch?v=R7nyqVCo9fU
+
+Criado por Ricardo Martins (**Parceiro oficial dos principais gateways e provedores de pagamento desde 2014**), esta é a 5ª geração do nosso plugin para WooCommerce, disponibilizadas também no Magento, e desde 2019 no WooCommerce. Mais de 20 mil lojas atendidas e **mais de 1 bilhão de reais transacionados** em nossas integrações.
 
 Além disso, você também pode aceitar **pagamentos recorrentes** e criar clubes de assinatura sem depender de plugins de terceiros.
 
@@ -44,89 +98,66 @@ https://www.youtube.com/watch?v=FOPwBTRryNM
 
 **Problemas com aprovação de pagamentos e chargebacks em transações com cartão de crédito?**
 
-Nossa integração possui [autenticação 3D Secure](https://pagsegurotransparente.zendesk.com/hc/pt-br/articles/22375922278157-Autentica%C3%A7%C3%A3o-3DS-Sua-prote%C3%A7%C3%A3o-contra-Chargeback), que reduz drasticamente seus custos com chargebacks, e aumenta significativamente a **taxa de aprovação**.
+Nossa integração possui [autenticação 3D Secure](https://ajuda.pbintegracoes.com/hc/pt-br/articles/22375922278157-Autentica%C3%A7%C3%A3o-3DS-Sua-prote%C3%A7%C3%A3o-contra-Chargeback), que reduz drasticamente seus custos com chargebacks, e aumenta significativamente a **taxa de aprovação**.
 
-Tudo pra você vender mais com PagBank(PagSeguro) sem sequer precisar se preocupar em contratar um serviço de antifraude.
+Tudo pra você vender mais com PagBank(PagSeguro) ou Vindi sem sequer precisar se preocupar em contratar um serviço de antifraude.
 
 
 * Termos de uso e softwares terceiros
-Ao instalar o plugin PagBank Connect, você concorda com as [Regras de uso do PagBank](https://pagseguro.uol.com.br/sobre/contrato-de-servicos), seu [Contrato de Serviço](https://pagseguro.uol.com.br/sobre/contrato-de-servicos), [Termos de Segurança, Privacidade](https://pagseguro.uol.com.br/sobre/seguranca-e-privacidade) e [Compartilhamento](https://pagseguro.uol.com.br/sobre/regras-de-compartilhamento), bem como os [Termos de uso e Política de Privacidade](https://pbintegracoes.com/terms/?utm_source=readme&utm_content=termos) do desenvolvedor.
-
-== ⚡️ RECURSOS ==
-* Suporte a PIX, Cartão de Crédito e Boleto
-* Suporte a [recorrência (assinaturas)](https://pagsegurotransparente.zendesk.com/hc/pt-br/sections/20410120690829-Recorr%C3%AAncia-e-Clube-de-Assinatura-com-WooCommerce), sem depender de outros plugins
-* Integração com [Envio Fácil](https://pagsegurotransparente.zendesk.com/hc/pt-br/articles/19944920673805-Envio-F%C3%A1cil-com-WooCommerce) (economize até 70% no frete com Correios e Jadlog) sem precisar de contrato
-* Suporte nativo ao [checkout em Blocos](https://pagsegurotransparente.zendesk.com/hc/pt-br/articles/31097182009741-Suporte-ao-Checkout-em-Blocos) do WooCommerce (sem gambiarras com iframes)
-* Suporte a [autenticação 3D Secure](https://pagsegurotransparente.zendesk.com/hc/pt-br/articles/22375922278157-Autentica%C3%A7%C3%A3o-3DS-Sua-prote%C3%A7%C3%A3o-contra-Chargeback) (reduza chargebacks e aumente suas aprovações)
-* Diversas [opções de parcelamento](https://pagsegurotransparente.zendesk.com/hc/pt-br/articles/19945359660173-Op%C3%A7%C3%B5es-de-Parcelamento)
-* Suporte a [descontos no boleto e pix](https://pagsegurotransparente.zendesk.com/hc/pt-br/articles/19945430928909-Oferecer-Desconto-Pix-e-Boleto) (percentual ou fixo)
-* Permite definir [validade de boletos e código PIX](https://pagsegurotransparente.zendesk.com/hc/pt-br/articles/24770387325837-Cancelamento-autom%C3%A1tico-de-pedidos-PIX-expirados) (em dias ou minutos)
-* [Reembolso parcial ou total](https://pagsegurotransparente.zendesk.com/hc/pt-br/articles/30882664582541-Reembolso-total-ou-Parcial) direto do painel do WooCommerce
-* Atualizações automáticas de status de pedidos
-* Configure como quer exibir o [nome da loja na fatura do cartão de crédito](https://pagsegurotransparente.zendesk.com/hc/pt-br/articles/19945038495629-Identificador-na-fatura)
-* Diversas [opções de configuração de endereço](https://pagsegurotransparente.zendesk.com/hc/pt-br/articles/20835022998029-Configura%C3%A7%C3%B5es-de-Endere%C3%A7o-de-Entrega)
-* Suporte a [High-Performance Order Storage (HPOS)](https://woo.com/document/high-performance-order-storage/): Este plugin é otimizado para ambientes com High-Performance Order Storage, garantindo um manuseio rápido e eficiente de seus pedidos WooCommerce.
-* Exibição de [informações de parcelas na página de produto em 3 formatos diferentes](https://pagsegurotransparente.zendesk.com/hc/pt-br/articles/26223028355597-Exibir-informa%C3%A7%C3%B5es-de-parcelamento-na-p%C3%A1gina-de-produto)
-* Permite exibir os meios de pagamento de [forma individual ou agrupada](https://pagsegurotransparente.zendesk.com/hc/pt-br/articles/26581505001357-Separar-meios-de-pagamento) (melhor experiência)
-* Hooks disponíveis para facilitar integrações e modificações que você queira fazer sem sobrescrever o plugin. [Veja documentação](https://pagsegurotransparente.zendesk.com/hc/pt-br/articles/27339148022669-Hooks-Filtros-e-A%C3%A7%C3%B5es-Dispon%C3%ADveis).
+Ao instalar nosso plugin, você concorda com as [Regras de uso do PagBank](https://pagseguro.uol.com.br/sobre/contrato-de-servicos), seu [Contrato de Serviço](https://pagseguro.uol.com.br/sobre/contrato-de-servicos), [Termos de Segurança, Privacidade](https://pagseguro.uol.com.br/sobre/seguranca-e-privacidade) e [Compartilhamento](https://pagseguro.uol.com.br/sobre/regras-de-compartilhamento), bem como os [Termos de uso e Política de Privacidade](https://pbintegracoes.com/terms/?utm_source=readme&utm_content=termos) do desenvolvedor.
 
 
 == Installation ==
 
 === Instalação automática via painel ===
-* Navegue até Plugins > Adicionar Novo e procure por "PagBank Ricardo Martins"
+* Navegue até Plugins > Adicionar Novo e procure por "PB Integrações"
 * Clique no botão para instalar e ative o plugin
-* Se você não estiver usando o [checkout em blocos](https://pagsegurotransparente.zendesk.com/hc/pt-br/articles/31097182009741-Suporte-ao-Checkout-em-Blocos) (nativo do Woo), repita o processo buscando e instalando o plugin [Brazilian Market on WooCommerce](https://br.wordpress.org/plugins/woocommerce-extra-checkout-fields-for-brazil/) a fim de habilitar campos adicionais de endereço e CPF, que são obrigatórios no PagBank.
+* Se você não estiver usando o [checkout em blocos](https://ajuda.pbintegracoes.com/hc/pt-br/articles/31097182009741-Suporte-ao-Checkout-em-Blocos) (nativo do Woo), repita o processo buscando e instalando o plugin [Brazilian Market on WooCommerce](https://br.wordpress.org/plugins/woocommerce-extra-checkout-fields-for-brazil/) a fim de habilitar campos adicionais de endereço e CPF, que são obrigatórios no PagBank.
 
-=== WP-CLI ===
+=== Instalação com WP-CLI ===
 Você pode instalar o plugin usando o [WP-CLI](https://wp-cli.org/). 
 
 * Basta rodar o comando `wp plugin install pagbank-connect --activate`. Adicione `--allow-root` se estiver rodando o comando como root.
-* Se você não estiver usando o [checkout em blocos](https://pagsegurotransparente.zendesk.com/hc/pt-br/articles/31097182009741-Suporte-ao-Checkout-em-Blocos) (nativo do Woo), repita o processo para instalar o plugin [Brazilian Market on WooCommerce](https://br.wordpress.org/plugins/woocommerce-extra-checkout-fields-for-brazil/) com o comando `wp plugin install woocommerce-extra-checkout-fields-for-brazil --activate` caso ainda não tenha ele instalado.
+* Se você não estiver usando o [checkout em blocos](https://ajuda.pbintegracoes.com/hc/pt-br/articles/31097182009741-Suporte-ao-Checkout-em-Blocos) (nativo do Woo), repita o processo para instalar o plugin [Brazilian Market on WooCommerce](https://br.wordpress.org/plugins/woocommerce-extra-checkout-fields-for-brazil/) com o comando `wp plugin install woocommerce-extra-checkout-fields-for-brazil --activate` caso ainda não tenha ele instalado.
 
 === Instalação manual ===
 * Baixe o [arquivo zip](https://codeload.github.com/r-martins/PagBank-WooCommerce/zip/refs/heads/master) e descompacte ele em sua máquina
 * Faça upload dos arquivos na pasta /wp-content/plugins/pagbank-connect, usando seu FTP
-* Navegue até Plugins > Plugins instalados, e ative o plugin PagBank Connect
-* Se você não estiver usando o [checkout em blocos](https://pagsegurotransparente.zendesk.com/hc/pt-br/articles/31097182009741-Suporte-ao-Checkout-em-Blocos) (nativo do Woo), instale o plugin [Brazilian Market on WooCommerce](https://br.wordpress.org/plugins/woocommerce-extra-checkout-fields-for-brazil/) a fim de habilitar campos adicionais de endereço e CPF, que são obrigatórios no PagBank.
+* Navegue até Plugins > Plugins instalados, e ative o plugin PB Integrações
+* Se você não estiver usando o [checkout em blocos](https://ajuda.pbintegracoes.com/hc/pt-br/articles/31097182009741-Suporte-ao-Checkout-em-Blocos) (nativo do Woo), instale o plugin [Brazilian Market on WooCommerce](https://br.wordpress.org/plugins/woocommerce-extra-checkout-fields-for-brazil/) a fim de habilitar campos adicionais de endereço e CPF, que são obrigatórios no PagBank/Vindi.
 * No terminal, navegue até a pasta do plugin (wp-content/plugins/pagbank-connect) e rode `npm install` para instalar as dependências do plugin. Em seguida, rode `npm run build` para compilar os arquivos do plugin.
 
 === A gente instala pra você 🙀 ===
 Se você preferir, podemos instalar e configurar o plugin para você sem nenhum custo.
 
-[Saiba mais](https://pbintegracoes.com/woocommerce/agenteinstala/?utm_source=readme&utm_content=agenteinstala). 
+[SOLICITAR INSTALAÇÃO GRATUITA](https://pbintegracoes.com/woocommerce/agenteinstala/?utm_source=readme&utm_content=agenteinstala). 
 
 === Configuração ===
-* Ative o meio de pagamento navegando até WooCommerce > Configurações > Pagamentos, e ativando o PagBank Connect
-* Clique no PagBank Connect para acessar as configurações do módulo
-* Clique em "Obter Connect Key". Você será levado para nosso site, onde poderá escolher o modelo de recebimento (14 ou 30 dias) e então autorizar nossa aplicação sem nenhum custo ou mensalidade.
+* Ative o meio de pagamento navegando até WooCommerce > Configurações > Pagamentos, e ativando o PB Integrações
+* Clique no menu PB Integrações > Configurações para acessar as configurações do módulo
+* Clique em "Obter Connect Key". Você será levado para nosso site, onde poderá escolher o modelo de recebimento (14 ou 30 dias) e então criar uma conta gratuitamente (sem mensalidade ou taxas fixas).
 * No nosso site, selecione o modelo de recebimento desejado (14 ou 30 dias - ou suas condições negociadas) e preencha as informações do responsável técnico por sua loja.
-* Você será levado para o site do PagBank, onde poderá se logar e autorizar nossa aplicação em sua conta.
 * Em seguida, sua *Connect Key* será exibida e enviada para o e-mail informado no passo anterior. Use ela nas configurações da sua loja.
 * Salve as configurações e sua loja está pronta para vender.
-* Se desejar, configure [opções de parcelamento](https://pagsegurotransparente.zendesk.com/hc/pt-br/articles/19945359660173-Op%C3%A7%C3%B5es-de-Parcelamento), e validade do boleto e código pix de acordo com suas necessidades.
-* Conheça os [recursos disponíveis na sua integração](https://pagsegurotransparente.zendesk.com/hc/pt-br/sections/26127218629133-Recursos) para aproveitar ao máximo dela e vender ainda mais.
+* Se desejar, configure [opções de parcelamento](https://ajuda.pbintegracoes.com/hc/pt-br/articles/19945359660173-Op%C3%A7%C3%B5es-de-Parcelamento), e validade do boleto e código pix de acordo com suas necessidades.
+* Conheça os [recursos disponíveis na sua integração](https://ajuda.pbintegracoes.com/hc/pt-br/sections/26127218629133-Recursos) para aproveitar ao máximo dela e vender ainda mais.
 
 == Frequently Asked Questions ==
-= PagSeguro ou PagBank? =
-
-Em 2023 o PagBank e o PagSeguro se tornaram uma única empresa: PagBank.
-
-E não se preocupe, os serviços que você usa não serão afetados.
-
 = Quais os requisitos para usar esta integração? =
 
 * Ter WooCommerce 4.0 ou superior
 * PHP 7.4 ou superior
-* Ter uma conta Vendedor ou Empresarial no PagSeguro/PagBank
-* [Autorizar nossa integração](https://pbintegracoes.com/connect/autorizar/?utm_source=readme&utm_content=pre-requisitos) em sua conta PagBank.
-* Usar o Checkout em Blocos (nativo) **ou** Ter instalado o plugin [Brazilian Market on WooCommerce](https://br.wordpress.org/plugins/woocommerce-extra-checkout-fields-for-brazil/) a fim de habilitar campos adicionais de endereço e CPF, que são obrigatórios no PagBank.
+* Não é necessário ter conta na Vindi
+* Ter um CPF ou CNPJ válidos e ativos no Brasil e uma conta bancária de mesma titularidade para receber seus pagamentos
+* Usar o Checkout em Blocos (nativo) **ou** Ter instalado o plugin [Brazilian Market on WooCommerce](https://br.wordpress.org/plugins/woocommerce-extra-checkout-fields-for-brazil/) a fim de habilitar campos adicionais de endereço e CPF, que são obrigatórios no PagBank/Vindi.
 
 = Como funcionam os descontos nas taxas? =
 
-Ao usar nossas integrações no modelo de recebimento em 14 ou 30 dias, ao invés de pagar 4,99% ou 3,99%, você pagará 3,97% ou 3,05% e estará isento da taxa de R$0,40 por transação.
+Ao usar nossas integrações você paga menos que as taxas oficiais dos parceiros com quem integra, graças ao modelo de parceria que temos com os principais gateways e provedores do mercado.
 
 Taxas menores também são aplicadas para transações parceladas, PIX e Boleto. PIX e Boleto também possuem prazos menores de recebimento.
+
+Por exemplo, com PIX a taxa é de apenas 0,99% e o valor estará disponível em sua conta PagBank na hora.
 
 = Eu tenho uma taxa ou condição negociada menor que estas. O que faço? =
 
@@ -142,11 +173,11 @@ Sua Connect key será gerada respeitando as taxas e condições negociadas que v
 
 = Estou tendo muitas transações negadas. O que fazer? =
 
-Consulte [este artigo](https://pagsegurotransparente.zendesk.com/hc/pt-br/articles/360027712431) e entre em contato conosco se o problema persistir.
+Consulte [este artigo](https://ajuda.pbintegracoes.com/hc/pt-br/articles/360027712431) e entre em contato conosco se o problema persistir.
 
 = Tenho outra pergunta não listada aqui =
 
-Consulte nossa [Central de ajuda](https://pagsegurotransparente.zendesk.com/hc/pt-br/) e [entre em contato](https://pagsegurotransparente.zendesk.com/hc/pt-br/requests/new) conosco se não encontrar sua dúvida respondida por lá.
+Consulte nossa [Central de ajuda](https://ajuda.pbintegracoes.com/hc/pt-br/) e [entre em contato](https://ajuda.pbintegracoes.com/hc/pt-br/requests/new) conosco se não encontrar sua dúvida respondida por lá.
 
 A maioria das dúvidas estão respondidas lá. As outras são respondidas em até 2 dias após entrar em contato.
 
@@ -154,9 +185,9 @@ A maioria das dúvidas estão respondidas lá. As outras são respondidas em at�
 
 Sim. 
 
-E quando há uma transação no PagBank, um link para ela é exibida na página do pedido. Assim você pode confirmar novamente o status do mesmo.
+E quando há uma transação no PagBank, um link para ela é exibida na página do pedido. Assim você pode confirmar o status do mesmo direto no site oficial.
 
-Caso utilize Cloudflare ou CDN, certifique-se de [configurá-lo corretamente](https://pagsegurotransparente.zendesk.com/hc/pt-br/articles/115002699823-Usu%C3%A1rios-Cloudflare-e-CDN-s) e liberar os IPs do PagSeguro para evitar bloqueios nas notificações.
+Se estiver tendo problemas com atualizações dos pedidos, consulte [este artigo](https://ajuda.pbintegracoes.com/hc/pt-br/articles/209089326-PagBank-n%C3%A3o-atualiza-status-dos-pedidos). Ele contém várias soluções para identificar e corrigir qualquer problema desta natureza.
 
 = Posso testar usando a Sandbox? =
 
@@ -168,16 +199,23 @@ Você também pode testar com dados reais e realizar o estorno. As tarifas e tax
 
 = Este é um plugin oficial? =
 
-Não. Este é um plugin desenvolvido por Ricardo Martins, parceiro PagBank desde 2014.
+Não. Este é um plugin desenvolvido por Ricardo Martins (e colaboradores), parceiro PagBank desde 2014.
 
 Apesar da parceria entre o desenvolvedor e o PagBank que concede descontos e benefícios, este NÃO é um produto oficial.
 
 PagSeguro e PagBank são marcas do UOL.
 
+= Qual diferença deste plugin pro oficial? =
+
+Nosso plugin está em constante evolução, possui recursos exclusivos e é desenvolvido por um parceiro oficial PagBank desde 2014.
+
+Além disso você conta com um suporte profissional e eficiente.
+
+Por estas e outras razões, muitos lojistas e agências profissionais preferem nossa integração.
 
 = O plugin é compatível com o WooCommerce Subscriptions? =
 
-Você não precisa do plugin WooCommerce Subscriptions ou nenhum outro para aceitar [pagamentos recorrentes com nossa integração](https://pagsegurotransparente.zendesk.com/hc/pt-br/sections/20410120690829-Recorr%C3%AAncia-e-Clube-de-Assinatura-com-WooCommerce).
+Você não precisa do plugin WooCommerce Subscriptions ou nenhum outro para aceitar [pagamentos recorrentes com nossa integração](https://ajuda.pbintegracoes.com/hc/pt-br/sections/20410120690829-Recorr%C3%AAncia-e-Clube-de-Assinatura-com-WooCommerce).
 
 
 = Posso modificar e comercializar este plugin? =
@@ -186,142 +224,202 @@ O plugin é licenciado sob GPL v3. Você pode modificar e distribuir, contanto q
 
 Você deve fazer isso através de Pull Requests ao [repositório oficial no github](https://github.com/r-martins/PagBank-WooCommerce).
 
+= O plugin funciona com lojas físicas (POS)? =
+Não, este plugin é exclusivo para vendas online (e-commerce) via WooCommerce.
+
+= Posso aceitar pagamentos internacionais? =
+O plugin aceita cartões internacionais, mas os pagamentos são processados em reais (BRL) através da conta PagBank brasileira e exige um CPF/CNPJ para finalização.
+
+Ainda estamos analisando junto ao PagBank uma forma de contornar essa exigência.
+
+= Como funciona o reembolso? =
+Você pode fazer [reembolsos parciais ou totais](https://ajuda.pbintegracoes.com/hc/pt-br/articles/30882664582541-Reembolso-total-ou-Parcial) diretamente do painel do WooCommerce. O valor é estornado automaticamente na conta do cliente.
+
+= O plugin funciona offline? =
+Não. É necessário conexão com internet para processar pagamentos, pois a comunicação é feita em tempo real com as APIs do PagBank.
+
+= Posso customizar a aparência do checkout? =
+Sim! O plugin segue o estilo do seu tema e você pode [usar CSS customizado](https://ajuda.pbintegracoes.com/hc/pt-br/articles/18278019489677-Como-ajustar-ou-modificar-CSS-e-Layouts-do-plugin) para ajustes adicionais.
+
+= Funciona com produtos digitais/virtuais? =
+Sim! O plugin funciona perfeitamente com produtos físicos, digitais, agrupados, baixáveis e virtuais.
+
+= Como funciona a confirmação automática de pagamento PIX? =
+O plugin verifica automaticamente o status do pagamento PIX e atualiza o pedido em tempo real, sem necessidade de intervenção manual.
+
+A confirmação é exibida ainda na tela de sucesso, e pode opcionalmente disparar eventos adicionais ou redirect.
+
+= Posso oferecer descontos diferentes por método de pagamento? =
+Sim! Você pode [configurar descontos percentuais ou fixos](https://ajuda.pbintegracoes.com/hc/pt-br/articles/19945430928909-Oferecer-Desconto-Pix-e-Boleto) para PIX e Boleto diretamente nas configurações do plugin.
+
 == Changelog ==
 
-= 4.22.1 =
-* Ajuste: logo após a instalação do plugin, uma falha na validação da disponibilidade de usar icones com cored dinâmicas tornava o admin bem lento por alguns segundos. Refatoramos o momento que a validação é feita evitando problemas com loops. :)
+= 5.0.0 =
+* Adicionado suporte à Vindi Pagamentos com taxas ainda menores. 🎉
+* Correção: um pedido finalizado com PIX ou Boleto e que possui desconto, pode carregar o desconto se o usuário usar o /order-pay para realizar o pagamento com outro meio que não teria o desconto.
 
-= 4.22.0 =
-* Melhoria: detecção automática de bandeira no checkout em bloco
-* Melhoria: não exibimos mais o seletor de parcelas em pagamentos recorrentes (já que era sempre 1x)
-* Melhoria: agora os ícones dos meios de pagamento também aparecem no checkout em blocos
-* Melhoria: removemos o efeito hover nos campos do plugin no checkout em blocos, que substituia os placeholders por __/__ (por exemplo)
-* Melhoria: campo de data de validade do cartão adicionará 0 quando o primeiro número digitado for maior que 1. Ex: 2, ficará 02/, assim como ocorre no form nativo no Woocommerce legado.
-* Mudança interna: removemos os arquivos da pasta build do nosso git. Se você instala nosso plugin via git ou composer, precisará compilá-los manualmente com npm run build. Mais detalhes no README.md.
-* Correção: dependendo da configuração da loja, o checkout em blocos permitia o envio do formulário e checkout em pedidos menores que R$1,00, ocasionando erro de CPF/CNPJ
+= 4.57.4 =
+* Correção: quando CPF ou telefone não eram informados porque o campo foi omitido, o plugin poderia gerar um erro fatal (propriedade não inicializada) ao finalizar uma compra com Boleto.
 
-= 4.21.1 =
-* Pequena correção no dropdown de parcelas em pagamentos recorrentes (quebrado na última versão)
-* Normalizamos a nomenclatura de "sem juros" que antes aparecia "sem acréscimo" em alguns casos no dropdown de parcelamento
+= 4.57.3 =
+* Correção: mensagens HTML de erro do Cloudflare poderiam ser exibidas no texto de erro no frontent.
 
-= 4.21.0 =
-* Adicionado suporte ao novo Checkoutem Blocks do WooCommerce
+= 4.57.2 =
+* Correção: o e-mail transacional de Assinatura Suspensa não podia ser editado ou pre-visualizado via admin pois gerava erro. (Reportado por Matheus Rocha - [loungemed.com.br](https://loungemed.com.br))
 
-= 4.20.2 =
-* Correção importante: em alguns casos uma falha de arredondamento na autenticação 3d em compras parceladas fazia com que o pedido não pudesse ser concluído, ocasionando erro 'payment_method.authentication_method.id (Autenticação 3D - Recarregue e tente novamente)'.
+= 4.57.1 =
+* Correção: validação da sessão 3D Secure poderia ficar 'presa' em casos onde a sessão 3d estava expirada.
+* Melhoria: renovamos a sessão 3d antes da finalização do pedido pra evitar que a sessão gerada esteja expirada
 
-= 4.20.1 =
-* Correção: instruções de boleto e pix pararam de ser adicionadas na tela de sucesso após nossa última atualização
+= 4.57.0 =
+* Adicionado suporte a produtos decimais/fracionados, incluindo produtos abaixo de um (ex: 0,854).
 
-= 4.20.0 =
-* Suporte a reembolso parcial ou total via painel do WooCommerce
-* Correção: problema de compatibilidade com alguns plugins ocasionavam falha na finalização de pedidos com cartão de crédito (40002 - Valor inválido. Parâmetro: charges[0].payment_method.card.encrypted (Criptografia do cartão)).
-* Bling: agora o Bling identificará em quantas parcelas um pedido com cartão de crédito foi feito. Veja [como integrar](https://youtu.be/S-_ZwWMnOdc).
-* Nota importante: a partir desta versão o `payment_method` salvo no pedido não será mais `rm-pagbank` para todos os métodos, e terá o sufixo -cc, -pix ou -boleto para identificar o método de pagamento. Isso pode afetar integrações que dependem deste campo. 
+= 4.56.1 =
+* Corrige erro onde uma venda recorrente poderia falhar se contivesse um produto rec
+orrente que não era salvo desde a implementação do recurso de restrição de conteúdo (e
+m Nov/2024), mesmo que tal recurso não fosse utilizado. O erro 'Uncaught TypeError: ar
+ray_merge(): Argument #2 must be of type array, string given'  era logado e uma mensag
+em de erro fatal impedia a finalização da compra.
+* Correção: pedidos com checkout PagBank (pagar no pagbank) eram cancelados quando o
+ checkout expirava, mesmo que já tivessem sido pagos.
 
-= 4.19.0 =
-* Melhoria: agora exibimos que um pedido foi pago ainda na tela de sucesso se ele for pago nos primeiros 10 minutos.
-* Melhoria: atendendo a pedidos, o ícone de Copiar exibido na tela de sucesso de PIX e Boleto passou a ser um botão ao invés de ícone.
+= 4.56.0 =
+* Adicionado suporte a CNPJ alfanumérico no checkout em blocos
+* Adicionado modo de compatibilidade para Brazilian Market on WooCommerce suportar CNPJ alfanumérico
 
-= 4.18.1 =
-* Performance: um problema na forma como lidávamos com as configurações e cache do parcelamento na página de produto afetavam significativamente a performance da loja em várias páginas, mesmo que o recurso estivesse desabilitado. Mudamos totalmente a forma como limpávamos o cache (que afetava lojas com muitos produtos) quando uma configuração de parcelamento era realizada e a quantidade de vezes que isso era feito
-* Correção: Chamar o load_text_domain no plugins_loaded ficou depreciado e warnings passarão a ser exibidos.
+= 4.55.2 =
+* Correção: produtos recorrentes com variação e período de testes configurado cobravam o cliente imediatamente desconsideranto o prazo de experimentação. O mesmo poderia ocorrer com outras configurações da recorrência sendo ignoradas em produtos com variação. Reportado por Yvan Perosso ([WX Soluções](https://wxst.com.br/)).
 
-= 4.18.0 =
-* Correção/Melhoria: em algumas situações onde um erro acontecia no retorno do PagBank no backend, o pedido era finalizado com sucesso. Isso fazia com que pedidos com PIX e Boleto fossem gerados sem QrCode ou QrCode Inválido. O mesmo ocorria em pedidos trial em recorrência e em outros cenários. Agora começamos a tratar os erros e exibi-los para o cliente de forma amigável.
-* Adicionado link para os Logs no menu PagBank (quando em DEBUG mode).
+= 4.55.1 =
+* Correção: classe css no campo de Parcelas poderia quebrar em alguns cenários/tema no Chrome, necessitando customizações adicionais de CSS. Reportado por Lincoln da [Digital Forms](https://digitalforms.com.br/).
+* Correção: quando usado em conjunto com plugins que forçam a ordem de carregamento de classes (ex: Nitropack), um erro fatal (WC_PaymentGateway_CC not found) poderia ocorrer.
 
-= 4.17.1 =
-* Correção: em alguns cenários onde o ícone dinamico não era acessível, a validacao interna falhava dizendo que era acessivel, fazendo com que o ícone dos pagamentos permanecesse quebrado (imagem invalida).
+= 4.55.0 =
+* Adicionado suporte ao WordPress 7.0
+* Melhoria: agora exibimos informações de parcelamento na tela de sucesso e e-mail, além de dar a opção de [personalizar a forma como o nome do meio de pagamento é exibido](https://ajuda.pbintegracoes.com/hc/pt-br/articles/45603209754893-T%C3%ADtulo-do-cart%C3%A3o-e-placeholders) nas APIs, podendo incluir informações de parcelamento detalhadas para facilitar integrações
+* Melhoria: Campos de cartão e CPF/CNPJ agora mostram teclado numérico no checkout em blocos em dispositivos moveis.
+* Melhoria: [Regras avançadas de desconto](https://ajuda.pbintegracoes.com/hc/pt-br/articles/45632701768077-Descontos-PIX-ou-Boleto-com-regras-personalizadas-avan%C3%A7adas) agora podem ser criadas com novos filtros. Veja [documentação detalhada](https://ajuda.pbintegracoes.com/hc/pt-br/articles/45632701768077-Descontos-PIX-ou-Boleto-com-regras-personalizadas-avan%C3%A7adas) e crie a sua regra personalizada agora mesmo usando AI.
+* Melhoria: o método que obtém informações de configuração de cartão de crédito agora fará fallback no valor padrão do plugin, sem depender de ter que salvar novamente as configurações para desfrutar de campos novos (deveremos fazer isso com outras áreas em breve)
+* Correção de problema com classe do EnvioFacil, onde em alguns cenários poderia ser carregada mesmo sem a existência de classes essenciais do WooCommerce como WC_Shipping
+* Adicionamos o WooCommerce como dependência do plugin, evitando que instale o plugin sem ter o WooCommerce ativo
+* Melhoria: depreciamos campos do tipo tel a fim de forçar o teclado numérico, pois notamos que alguns navegadores/extensoes adicionavam dropdown para selecionar código do país/área. O teclado numérico segue a ser usado na experiência mobile.
 
-= 4.17.0 =
-* Melhoria: Se por algum motivo os ícones com cores personalizadas não puderem ser exibidos (ex: plugin de segurança afetando funcionamento), usaremos a imagem estática e exibiremos um aviso no admin ao salvar as configs do pagbank.
+= 4.54.1 =
+* Correção: no checkout em blocos, quando um desconto era aplicado as parcelas do cartão não eram atualizadas, e a autenticação 3D falhava em alguns cenários pedindo para recarregar a página
+* Correção: no checkout em blocos, quando o usuário falhava em digitar uma das informações corretamente e o 3D falhava apontando o erro, mesmo que o comprador corrigisse o problema ainda não conseguiria finalizar o checkout
+* Adicionamos sourcemaps nos arquivos js do checkout em blocos a fim de facilitar o desenvolvimento futuro.
+* Correção: No checkout em blocos se o PIX com desconto fosse o meio padrão selecionado seus descontos não eram exibidos nos totais. E em outros cenários, ao selecionar cartão de crédito o desconto pix permanecia aplicado (e impedindo a finalização de compra).
 
-= 4.16.0 =
-* Melhoria: agora informações do PIX ou do Boleto também são enviadas no e-mail transacional
-* Melhoria: alguns administradores digitavam o token PagBank (nunca solicitado) no campo da Connect Key. Agora validamos isso e avisamos ele sobre o engano.
-* Melhoria: fazemos validação no último pedido pix a fim de ver se há erro de chave pix inválida causada pela não existência de chaves aleatórias na conta PagBank. Agora fazemos isso com bem menos frequência, ou uma vez só se estiver tudo certo. Isso deve melhorar a performance do plugin na área administrativa.
-* Correção: em lojas com HPOS desabilitado e com WooCommerce 9.2.0 ou superior, um Notice era gravado (ou exibido) dizendo que o método `WC_Order_Data_Store_CPT::query` foi chamado incorretamente.
+= 4.54.0 =
+* Melhoria: filtro de split adicionado a fim de permitir pagamento de afiliados automática com novo plugin PB Afiliados.
 
-= 4.15.0 =
-* Melhorias gerais de código, performance, e boas práticas em todo plugin. Trata-se de uma grande mudança na forma como o plugin é estruturado internamente e nos possibilitará evolui-lo com mais segurança e menos bugs.
-* Mudança: descontinuamos a opção de exibir os métodos de pagamento de forma agrupada. Agora eles são exibidos de forma individual, o que é mais amigável e intuitivo para o admin.
-* Correção: na conversão de minutos da expiração do PIX para o usuário (ex: 43200 minutos era exibido como 7 dias)
-
-= 4.14.0 =
-* Melhoria: Mensagem amigável e opção de esconder os meios de pagamento para pedidos inferiores a R$1,00
-* Melhoria: truncamos alguns campos como nome do cliente e alguns campos de endereço a fim de evitar erros na finalização do pedido quando o valor informado é maior que o permitido pelo PagBank.
-* Correção de Uncaught Error: Call to a member function get_edit_order_url() on bool na listagem de assinaturas ativas do admin em alguns cenários
-* Correção: quando desabilitávamos a opção de pausar ou cancelar assinatura (para o usuário), as opções também deixavam de ser exibidas para o administrador em alguns cenários
-
-= 4.13.0 =
-* Agora é possível definir período de teste e opções de descontos para assinaturas.
-* APIs: obtenha informações detalhadas dos pagamentos feitos com pagbank nos metadados do pedido via API Rest do próprio WordPress/Woo
-
-= 4.12.0 =
-* Agora é possível remover os botões de Cancelar ou Pausar assinatura na área do cliente
-* Agora o administrador pode alterar o valor de uma assinatura no admin
-
-= 4.11.7 =
-* Melhoria: adicionado NSU e Authorization code aos meta dados do pedido, para facilitar conciliação
-* Melhoria: agora validamos o order_id do pedido quando uma notificação é recebida, evitando que pedidos com mesmo ID sejam atualizados erroneamente e em alguns casos alterando pedidos pagos para cancelados.
-* Correção: símbolo da moeda (R$) aparecia duplicado no formulário de pagamento em vendas recorrentes
-
-= 4.11.6 =
-* Melhoria: agora quando você marca para exibir meios de pagamento separadamente, a opção de selecionar como o titulo sera exibido é omitida, evitando confusão (já que esta opção não terá efeito algum)
-* Corrige erro no tamanho dos ícones quando meios de pagamento eram exibidos individualmente, em alguns checkouts como Porto
-* Mudamos a forma como obtemos o preço do produto na finalização de compra, a fim de corrigir erros de compatibilidade com alguns plugins e tornar o processo mais enxuto e rápido
-
-= 4.11.5 =
-* Pequena melhoria: adicionamos alguns hooks com filters e actions para facilitar integrações e modificações que você queira fazer sem sobrescrever o plugin. [Veja documentação](https://pagsegurotransparente.zendesk.com/hc/pt-br/articles/27339148022669-Hooks-Filtros-e-A%C3%A7%C3%B5es-Dispon%C3%ADveis). 
-
-= 4.11.4 =
-* Correção: alguns plugins de terceiros não utilizam filtros corretamente, fazendo com que nosso css não seja inserido e o checkout apresente problemas, como ícones grandes e afins. Contornamos o problema aqui. 
-
-= 4.11.3 =
-* Correção em falha que impedia o EnvioFacil de ser habilitado
-
-= 4.11.2 =
-* Correção: em alguns cenários, o campo de CPF, número do endereço e bairro não eram enviados corretamente ocasionando falha no fechamento do pedido (especialmente em Boletos).
-
-= 4.11.1 = 
-* Correção: nosso validador de chaves pix adicionado na versão anterior apontava para pedidos não-pix
-* Correção: a mensagem de validação do pix não era ignorada em alguns cenários após dispensá-la
-
-= 4.11.0 =
-* Melhoria: agora o plugin exibe uma mensagem de erro no admin caso o código PIX esteja sendo gerado incorretamente por conta de algum problema em sua conta PagBank (geralmente porque você não cadastrou a chave aleatória).
-* Correção: o valor dos produtos era informado de forma incorreta ao PagBank quando múltiplos do mesmo item estavam presentes no pedido (embora o valor cobrado estivesse correto).
-
-= 4.10.2 =
-* Correção em erro no cálculo de parcelas. Em alguns cenários, dependendo das regras de parcelamento, quando o total de parcelas sem juros era = 1, poderia ocasionar erro na pagina de produto (se as parcelas estivessem sendo exibidas la) e no dropdown de parcelamento do checkout.
-* Correções diversas em warnings e notices em versões mais novas do PHP 8.1 e 8.2 que poderiam aparecer no admin, e em algumas etapas do pedido quando modo debug estava ativo. 
-
-= 4.10.1 =
-* Correção de erro "get_cart was called incorrectly" era exibido quando usado em conjunto com alguns outros plugins (como Mercado Pago), em alguns casos quebrando o carrinho.
-* Alteramos a forma como o uso de shortcode de parcelamento é usado. Agora você deve habilitar ele nas configurações. Isso evita que ele seja adicionado em duplicidade.
-* Corrigido falha na compra de produto recorrente quando meios de pagamento eram configurados para ser exibidos de forma separada. A mensagem Método de pagamento inválido era exibida.
-* Melhoramos a descrição de alguns dos campos de configuração de cartão de crédito, a fim de deixar mais claro o que cada um faz e com mais links para documentação.
+= 4.53.2 =
+* Melhorias e correções no ícone de pagamento. Definido utf-8 para caracteres especiais no SVG; Sanitização do $_GET que era inutilizado; Validação de existência do arquivo ícone; Controle explícito de formatação e espaços no load do SVG no DOM; Elimina duplicações da tag svg e remove declaração de XML e DOCTYPE. (contribuição de [Matheus Vale](https://matheusvale.com/))
 
 
-= 4.10.0 =
-* Emails: agora o administrador e cliente só receberão e-mails notificando que um pedido foi criado se o mesmo tiver sido pago.
-* Correção/Mudança: agora pessoas com permissão de gerente de loja e administradores poderão ter acesso ao menu PagBank. Antes somente administradores tinham acesso.
-* Agora é possível usar o shortcode [rm_pagbank_credit_card_installments] para exibir as parcelas de um produto em layouts personalizados.
-* Corrigido Erro na exibição das parcelas quando opção 'Texto com parcela máxima' era selecionado em alguns cenários.
+= 4.53.1 =
+* Correção: em doações recorrentes com valor especificado pelo comprador o valor não era replicado no item, causando falha e cancelamento da assinatura no segundo ciclo da recorrencia.
+* Correção: desconto pix nem sempre era exibido pois o checkout nem sempre atualizava o total
+
+= 4.53.0 =
+* Melhoria/correção na forma como descontos de PIX e Boleto eram aplicados. Agora o desconto será exibido nos totais em todos os lugares devidos, sem exigir configurações adicionais nem remendos, e ampliando a compatibilidade com plugins de terceiros como Funnel kit.
+* Removemos a funcionalidade/opção de exibir descontos pix junto aos totais já que isso ocorrerá organicamente em todos os lugares devidos quando houver desconto (PIX ou BOLETO).
+
+= 4.52.0 =
+* Melhoria: Agora é possível esconder os ícones de pagamento (interessante se tiver problemas com css e não quiser ajustar)
+* Workaround: alguns plugins sobrescrevem a ordem de plugins de pagamentos que são carregados, fazendo com que o nosso não seja exibido, incluindo algumas abas de nossas configurações que deixam de ser exibidas.
+* Correção: ao fazer upgrade do plugin, em alguns cenários uma das migrações poderia resetar algumas configurações, tornando alguns meios de pagamento não mais "ativos" até que a pessoa salvas
+se sua configuração novamente
+* Correção: ferramenta de diagnóstico não exibia valores corretamente quando os valores-padrão estavam em uso ou quando o usuário não havia realizado nenhuma mudança
+* Correção: escondemos os descontos pix nos totais caso pix nno seja o selecionado + atualizamos o total com o desconto pixx
+* Correção: split de pagamentos recorrentes com Dokan Marketplace terminava em falha por conta de parâmetro liable não suportado. 
+
+= 4.51.0 =
+* Melhoria: Agora é possível exibir os totais com desconto PIX no checkout e carrinho. Basta ativar nas configurações.
+
+= 4.50.3 =
+* Atualização de segurança para dependencia de desenvolvimento (phpunit/phpunit) que impedia nosso último update de ser lançado. Não afeta a segurança de lojas de produção, somente em ambientes de desenvolvimento com instalação via composer --require-dev.
+
+= 4.50.2 =
+* Correção: erro fatal poderia ocorrer em versões do Woo anteriores a 7.1 ao verificarmos se o HPOS estava ativo.
+
+= 4.50.1 =
+* Removidas mensagens desnecessárias dos logs relacionados ao split de pagamentos e dokan que eram exibidas no log mesmo sem tais recursos estarem em uso/ativos
+* Correção: em alguns cenários de race conditions, pedidos vindos de assinaturas poderiam ser gerados em duplicidade, especialmente em lojas que não configuraram o cron corretamente.
+* Correção: botões de ação como copiar código, exibir boleto, etc não mais serão exibidos se o pagamento for negado pelo antifraude
+* Pequena mudança nos headers enviados para o PagBank a fim de contornar problemas e bloqueios
+
+= 4.50.0 =
+* Melhoria: na geração de boletos, quando nome da empresa e CNPJ forem informados, usaremos estas informações como dados do pagador.
+* Correção que impedia integração com Dokan ser ativada em alguns cenarios
+
+= 4.49.0 =
+* Melhoria: agora é possível filtrar assinaturas por e-mail do cliente
+* Melhoria: e-mail do cliente é exibido nos detalhes da assinatura no admin, facilitando o gerenciamento
+* Melhoria: quando não há ações a serem executadas em uma assinatura, agora explicamos isso, ao invés de deixar a área de Ações vazia
+* Melhoria: passamos a exibir a hora da criação, atualização e próxima cobrança de uma assinatura
+* Correção: dia do vencimento do boleto podia ser exibido e/ou gerado com margem de erro de 1 dia dependendo do horário em que foi gerado.
+* Correção: Instruções PIX/Boleto não apareciam em checkout legado quando payment_method não correspondia ao gateway ID. Adiciona hook fallback para garantir exibição. Impacta lojas com checkout legado.
+
+= 4.48.0 =
+* Melhoria: adicionado medidas de segurança, evitando que: 1) usuários adicionem mais de 5 cartões salvos; 2) bots realizem testes de cartão ao adicionar cartões em intervalos menores que 2 minutos ou sem estarem logados; 3) nonce adicionado ao formulário de cartão (área logado) evitando que bots explorem diretamente este endpoint
+* Correção: erro fatal poderia ocorrer ao finalizar uma compra com assinatura por conta de uma tentativa de inserir registros duplicados. Na ausência da chave única na tabela, assinatura e cobranças duplicadas poderiam ser geradas. (Reportado por Ricardo Alves B.)
+* Correção: mesmo com opção de salvar cartão desabilitada, ainda era possível salvar cartão em Minha Conta > Meios de Pagamento
+* Correção/Melhoria: Erro fatal poderia ocorrer ao tentar finalizar um pedido com Boleto (métodos getter retornam null (retorna string vazia)) e melhorado phpdoc de alguns métodos do objeto Address.
+* Correção: Erro Fatal poderia ocorrer na primeira vez a configuração de uma das áreas do plugin fosse salva, dependendo de como o plugin foi reinstalado/reconfigurado no passado.
+* Correção: em cenários específicos, o form de cartão de crédito não era exibido no checkout em blocos (TypeError).
+
+= 4.47.0 =
+* Adicionado suporte a divisão de pagamentos (split) nativa.
+* Adicionado [suporte a Dokan Marketplace](https://ajuda.pbintegracoes.com/hc/pt-br/articles/40558023581965-Dokan-Split-Divis%C3%A3o-de-Pagamentos-para-Marketplace) para divisão de pagamentos entre múltiplos vendedores (split, multivendor).
+* Adicionado opção para habilitar/desabilitar opção de salvar cartão de crédito para compras futuras. Desativado por padrão.
+
+= 4.46.1 =
+* Correção/melhoria: Mais assertibilidade no mapeamento de atributos de endereço, garantindo etiquetas corretas no Envio Facil
+* Correção: "Cliente não identificado" aparecia no nome do cliente em toda assinatura na tela de relatorios se HPOS estivesse ativo
+* Suporte ao WordPress 6.9 adicionado
+
+= 4.46.0 =
+* Melhoria: agora é possível definir uma rota alternativa para as notificações/atualizações do PagBank, caso seu provedor bloqueie asas requisições padrão.
+* Correção: em alguns cenários, se o nome do produto contivesse caracteres ilegais como tags html, o pedido não era criado corretamente ocasionando erro no pagamento.
+
+= 4.45.2 =
+* Compatibilidade: Alguns métodos depreciados no Woo 10.3 poderiam exibir warnings no log. Corrigido.
+
+= 4.45.1 =
+* Correção: compatibilidade com PHP 8.1+ substituindo função depreciada de sanitização de caracteres especiais.
+* Correção: em alguns cenários as mensagens de erro de validação da connect key não são exibidas prop
+riamente no admin, nas configs do plugin.
+* Correção: adicionada dependência jquery-blockui para corrigir erro de validação 3DS que impedia finalização de pedido de forma silenciosa em alguns cenários de customização/temas que removiam tal componente.
+
+
+= Versões mais antigas =
+
+Para versões mais antigas veja o [arquivo changelog.txt file](https://plugins.svn.wordpress.org/pagbank-connect/trunk/changelog.txt) entregue junto com o plugin.
+
+Ou Veja [changelog completo](https://github.com/r-martins/PagBank-WooCommerce/tags).
+
+Se precisar, faça um [rollback para uma versão anterior](https://ajuda.pbintegracoes.com/hc/pt-br/articles/26766244416269-Como-voltar-para-uma-vers%C3%A3o-anterior) e nos avise para corrigirmos.
 
 == Upgrade Notice ==
 Ao atualizar nosso plugin, você se protege contra falhas de funcionamento e segurança e aumenta suas chances de conversão no momento mais importante do ciclo de vendas.
 
 Ao atualizar versões majoritárias (ex: 3.5 para 4.0), certifique-se de testar rigorosamente sua integração, pois mudanças deste tipo tendem a trazer incompatibilidades entre versões.
 
+== Palavras-chave relacionadas ==
+plugin pagbank woocommerce, gateway pagamento brasil, pagseguro woocommerce, pix woocommerce, boleto woocommerce, cartão crédito woocommerce, plugin pagamento gratuito, integração pagbank, checkout pagbank, recorrência woocommerce, assinatura woocommerce, envio fácil woocommerce
+
 == Screenshots ==
 1. Cartão de Crédito na visão do cliente
-2. PIX - Tela de Sucesso
+2. PIX - Tela de Sucesso com confirmação instantânea
 3. Configurações de cartão de crédito
 4. PIX e Boleto - Configurações
 5. Admin - Tela do Pedido
 6. Envio Fácil
 7. Autenticação 3D Secure
-8. Pedidos Recorrentes (assinaturas)
+8. Pedidos Recorrentes (assinaturas) com relatórios
 9. Parcelamento na Página de Produto
 10. Suporte a Checkout em Blocos do WooCommerce
+11. Conteúdo para assinantes
+12. Divida pagamentos entre múltiplas contas PagBank
+13. Integração com Marketplace Dokan
