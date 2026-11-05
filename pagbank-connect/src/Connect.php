@@ -57,6 +57,8 @@ class Connect
         add_action('woocommerce_api_rm_ps_notif', [__CLASS__, 'notification']);
         add_action('wp_ajax_get_cart_total', [CreditCard::class, 'getCartTotal']);
         add_action('wp_ajax_nopriv_get_cart_total', [CreditCard::class, 'getCartTotal']);
+        add_action('wp_ajax_ps_get_recurring_terms', [CreditCard::class, 'getAjaxRecurringTerms']);
+        add_action('wp_ajax_nopriv_ps_get_recurring_terms', [CreditCard::class, 'getAjaxRecurringTerms']);
         add_action('wp_ajax_ps_get_3d_session', [CreditCard::class, 'getAjax3DSession']);
         add_action('wp_ajax_nopriv_ps_get_3d_session', [CreditCard::class, 'getAjax3DSession']);
         \RM_PagBank\Connect\Payments\VindiThreeDs::register();
@@ -87,8 +89,9 @@ class Connect
         add_filter('woocommerce_rest_prepare_shop_order_object', [__CLASS__, 'addOrderMetaToApiResponse'], 10, 3 );
         add_filter('woocommerce_rest_prepare_shop_order_object', [CreditCardDisplayTitle::class, 'filterRestPrepareShopOrderObject'], 20, 3);
         add_filter('woocommerce_order_get_payment_method_title', [CreditCardDisplayTitle::class, 'filterPaymentMethodTitle'], 10, 2);
-        add_action('woocommerce_admin_order_data_after_order_details', [__CLASS__, 'addPaymentInfoAdmin'], 10, 1);
         Connect\AdminOrderPayment::init();
+        // Thank-you / order details: hide Pay+Cancel while awaiting PIX/boleto/card WAITING (avoids double pay).
+        add_filter('woocommerce_my_account_my_orders_actions', [__CLASS__, 'hidePendingOrderPayCancelActions'], 10, 2);
         add_action('woocommerce_api_wc_order_status', [__CLASS__, 'getOrderStatus']);
         add_filter('woocommerce_order_item_needs_processing', [__CLASS__, 'orderItemNeedsProcessing'], 10, 3);
         add_filter('woocommerce_get_checkout_order_received_url', [Redirect::class, 'getOrderReceivedURL'], 100, 2);
@@ -1066,15 +1069,31 @@ class Connect
     }
 
     /**
-     * Adds order info to the admin order page by including the order info template
+     * Hide Pay/Cancel on thank-you and My Account while a PagBank/Vindi order awaits payment
+     * (pending/on-hold). Customers reusing Pay were creating duplicate charges on WAITING cards.
      *
-     * @param $order
-     *
-     * @return void
-     * @noinspection PhpUnusedParameterInspection*/
-    public static function addPaymentInfoAdmin($order)
+     * @param array     $actions
+     * @param \WC_Order $order
+     * @return array
+     */
+    public static function hidePendingOrderPayCancelActions($actions, $order): array
     {
-        include_once WC_PAGSEGURO_CONNECT_BASE_DIR . '/src/templates/order-info.php';
+        if (!is_array($actions) || !$order instanceof \WC_Order) {
+            return is_array($actions) ? $actions : [];
+        }
+
+        $method = (string) $order->get_payment_method();
+        if ($method === '' || strpos($method, self::DOMAIN) !== 0) {
+            return $actions;
+        }
+
+        if (!$order->has_status(['pending', 'on-hold'])) {
+            return $actions;
+        }
+
+        unset($actions['pay'], $actions['cancel']);
+
+        return $actions;
     }
 
     /**
